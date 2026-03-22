@@ -28,23 +28,13 @@ async function optimizeData(req, res) {
             return res.status(404).json({ error: '数据不存在' });
         }
 
-        // 使用 Dify API 进行优化（如果没有配置 Dify，使用 Mock 响应）
-        const difyApiKey = process.env.DIFY_API_KEY || 'test-key';
-        const difyBaseUrl = process.env.DIFY_API_BASE_URL || 'http://localhost:5001';
+        // 使用智谱 AI API 进行优化
+        const zhipuApiKey = process.env.ZHIPU_API_KEY;
+        const zhipuModel = process.env.ZHIPU_MODEL || 'glm-4';
 
-        const userPrompt = `请优化以下数据：
+        const systemPrompt = `你是一个专业的数据优化助手。你的任务是根据用户的要求，优化已有的数据内容。
 
-【原始数据】
-- 类型：${data.type}
-- 分类：${data.category}
-- 标题：${data.title}
-- 内容：${data.content?.slice(0, 500)}
-${data.conversation ? `- 对话：${JSON.stringify(data.conversation)}` : ''}
-
-【优化要求】
-${requirements}
-
-请直接返回优化后的 JSON 数据，格式如下：
+请根据用户的优化要求，返回优化后的 JSON 数据，格式如下：
 {
   "type": "优化后的类型",
   "category": "优化后的分类",
@@ -52,35 +42,79 @@ ${requirements}
   "content": "优化后的内容",
   "conversation": null,
   "optimizationNote": "优化说明"
-}`;
+}
+
+注意：
+1. 必须返回标准的 JSON 格式
+2. 不要包含 markdown 代码块标记
+3. 直接返回 JSON 对象`;
+
+        const userPrompt = `请优化以下数据：
+
+【原始数据】
+- 类型：${data.type}
+- 分类：${data.category}
+- 标题：${data.title}
+- 内容：${data.content?.slice(0, 1000)}
+${data.conversation ? `- 对话：${JSON.stringify(data.conversation)}` : ''}
+
+【优化要求】
+${requirements}
+
+请直接返回优化后的 JSON 数据：`;
 
         let optimizedData;
 
-        try {
-            // 尝试调用 Dify API
-            const difyResponse = await axios.post(
-                `${difyBaseUrl}/v1/chat-messages`,
-                {
-                    inputs: {},
-                    query: userPrompt,
-                    response_mode: 'blocking',
-                    user: 'admin'
-                },
-                {
-                    headers: {
-                        'Authorization': `Bearer ${difyApiKey}`,
-                        'Content-Type': 'application/json'
+        if (zhipuApiKey && zhipuApiKey !== 'your-zhipu-api-key-here') {
+            try {
+                // 调用智谱 AI API
+                const zhipuResponse = await axios.post(
+                    'https://open.bigmodel.cn/api/paas/v4/chat/completions',
+                    {
+                        model: zhipuModel,
+                        messages: [
+                            { role: 'system', content: systemPrompt },
+                            { role: 'user', content: userPrompt }
+                        ],
+                        temperature: 0.7,
+                        top_p: 0.9
                     },
-                    timeout: 30000
+                    {
+                        headers: {
+                            'Authorization': `Bearer ${zhipuApiKey}`,
+                            'Content-Type': 'application/json'
+                        },
+                        timeout: 30000
+                    }
+                );
+
+                const llmResponse = zhipuResponse.data.choices[0].message.content;
+                console.log('智谱 AI 响应:', llmResponse);
+
+                // 解析 JSON 响应
+                const jsonMatch = llmResponse.match(/\{[\s\S]*\}/);
+                optimizedData = jsonMatch ? JSON.parse(jsonMatch[0]) : JSON.parse(llmResponse);
+
+                console.log('✅ 智谱 AI 优化成功');
+            } catch (zhipuError) {
+                console.log('智谱 AI API 调用失败，使用 Mock 响应:', zhipuError.message);
+                if (zhipuError.response) {
+                    console.log('响应状态:', zhipuError.response.status);
+                    console.log('响应数据:', JSON.stringify(zhipuError.response.data));
                 }
-            );
 
-            const llmResponse = difyResponse.data.answer;
-            const jsonMatch = llmResponse.match(/\{[\s\S]*\}/);
-            optimizedData = jsonMatch ? JSON.parse(jsonMatch[0]) : JSON.parse(llmResponse);
-        } catch (difyError) {
-            console.log('Dify API 调用失败，使用 Mock 响应:', difyError.message);
-
+                // Mock 响应（用于测试环境）
+                optimizedData = {
+                    type: data.type,
+                    category: data.category,
+                    title: data.title + '（优化版）',
+                    content: data.content + '\n\n【优化内容】根据要求：' + requirements,
+                    conversation: null,
+                    optimizationNote: '由于 LLM 服务不可用，返回 Mock 优化结果。请配置有效的智谱 API Key。'
+                };
+            }
+        } else {
+            console.log('⚠️ 未配置智谱 API Key，使用 Mock 响应');
             // Mock 响应（用于测试环境）
             optimizedData = {
                 type: data.type,
@@ -88,7 +122,7 @@ ${requirements}
                 title: data.title + '（优化版）',
                 content: data.content + '\n\n【优化内容】根据要求：' + requirements,
                 conversation: null,
-                optimizationNote: '由于 LLM 服务不可用，返回 Mock 优化结果。实际使用时请配置有效的 LLM API。'
+                optimizationNote: '由于 LLM 服务不可用，返回 Mock 优化结果。请配置有效的智谱 API Key。'
             };
         }
 
