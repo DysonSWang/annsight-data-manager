@@ -1,0 +1,1290 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AnnSight 数据审核平台</title>
+    <style>
+        :root {
+            --primary: #667eea;
+            --primary-dark: #5a67d8;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --gray-50: #f9fafb;
+            --gray-100: #f3f4f6;
+            --gray-200: #e5e7eb;
+            --gray-300: #d1d5db;
+            --gray-600: #4b5563;
+            --gray-700: #374151;
+            --gray-900: #111827;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: var(--gray-100);
+            color: var(--gray-700);
+            line-height: 1.6;
+        }
+
+        /* 顶部导航 */
+        .header {
+            background: linear-gradient(135deg, var(--primary) 0%, #764ba2 100%);
+            color: white;
+            padding: 1rem 2rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .header-content {
+            max-width: 1600px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header h1 { font-size: 1.5rem; font-weight: 700; }
+
+        .nav-tabs {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .nav-tab {
+            padding: 0.5rem 1rem;
+            border: none;
+            background: rgba(255,255,255,0.1);
+            color: white;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+        }
+
+        .nav-tab:hover { background: rgba(255,255,255,0.2); }
+        .nav-tab.active { background: white; color: var(--primary); }
+
+        /* 主容器 */
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 1.5rem;
+        }
+
+        /* 统计卡片 */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 1.25rem;
+            border-radius: 10px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        .stat-card .value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--gray-900);
+        }
+
+        .stat-card .label {
+            font-size: 0.875rem;
+            color: var(--gray-600);
+            margin-top: 0.25rem;
+        }
+
+        .stat-card.highlight {
+            background: linear-gradient(135deg, var(--primary) 0%, #764ba2 100%);
+        }
+
+        .stat-card.highlight .value,
+        .stat-card.highlight .label { color: white; }
+
+        /* 主内容区 */
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 380px;
+            gap: 1rem;
+        }
+
+        /* 数据列表 */
+        .data-list {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .data-list-header {
+            padding: 1rem 1.25rem;
+            border-bottom: 1px solid var(--gray-200);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .batch-actions {
+            display: none;
+            gap: 0.5rem;
+            padding: 0.75rem 1.25rem;
+            background: var(--gray-50);
+            border-bottom: 1px solid var(--gray-200);
+        }
+
+        .batch-actions.active {
+            display: flex;
+        }
+
+        .btn-sm {
+            padding: 0.5rem 0.75rem;
+            font-size: 0.85rem;
+            border-radius: 5px;
+            border: 1px solid var(--gray-300);
+            background: white;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .btn-sm:hover { background: var(--gray-100); }
+        .btn-sm.primary { background: var(--primary); color: white; border-color: var(--primary); }
+        .btn-sm.primary:hover { background: var(--primary-dark); }
+
+        .data-list-header h2 {
+            font-size: 1.125rem;
+            font-weight: 600;
+            color: var(--gray-900);
+        }
+
+        .data-item {
+            padding: 1rem 1.25rem;
+            border-bottom: 1px solid var(--gray-200);
+            cursor: pointer;
+            transition: background 0.15s;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .data-item:hover { background: var(--gray-50); }
+        .data-item.selected {
+            background: rgba(102, 126, 234, 0.1);
+            border-left: 3px solid var(--primary);
+        }
+
+        .batch-checkbox {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+            flex-shrink: 0;
+        }
+
+        .data-item-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 0.5rem;
+        }
+
+        .data-item-title {
+            font-weight: 500;
+            color: var(--gray-900);
+            flex: 1;
+        }
+
+        .data-item-meta {
+            display: flex;
+            gap: 0.75rem;
+            font-size: 0.8rem;
+        }
+
+        .badge {
+            padding: 0.25rem 0.5rem;
+            border-radius: 12px;
+            font-weight: 500;
+        }
+
+        .badge-type { background: #dbeafe; color: #1e40af; }
+        .badge-category { background: #f3e8ff; color: #6b21a8; }
+        .badge-confidence { background: #fef3c7; color: #92400e; }
+
+        .data-item-preview {
+            font-size: 0.875rem;
+            color: var(--gray-600);
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        /* 审核面板 */
+        .review-panel {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            display: flex;
+            flex-direction: column;
+            max-height: calc(100vh - 280px);
+            position: sticky;
+            top: 140px;
+        }
+
+        .review-panel-header {
+            padding: 1rem 1.25rem;
+            border-bottom: 1px solid var(--gray-200);
+            font-weight: 600;
+            color: var(--gray-900);
+        }
+
+        .review-panel-content {
+            padding: 1.25rem;
+            overflow-y: auto;
+            flex: 1;
+        }
+
+        .content-section {
+            margin-bottom: 1.25rem;
+        }
+
+        .content-section label {
+            display: block;
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: var(--gray-600);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 0.5rem;
+        }
+
+        .content-section .value {
+            font-size: 0.95rem;
+            color: var(--gray-900);
+        }
+
+        .content-section textarea,
+        .content-section select {
+            width: 100%;
+            padding: 0.625rem;
+            border: 1px solid var(--gray-300);
+            border-radius: 6px;
+            font-size: 0.9rem;
+            font-family: inherit;
+        }
+
+        .content-section textarea:focus,
+        .content-section select:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .score-display {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 0.5rem;
+            margin-top: 0.5rem;
+        }
+
+        .score-item {
+            text-align: center;
+            padding: 0.5rem;
+            background: var(--gray-50);
+            border-radius: 6px;
+        }
+
+        .score-item .score {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--primary);
+        }
+
+        .score-item .label {
+            font-size: 0.7rem;
+            color: var(--gray-600);
+            margin-top: 0.25rem;
+        }
+
+        /* 操作按钮 */
+        .action-buttons {
+            display: flex;
+            gap: 0.5rem;
+            padding: 1rem 1.25rem;
+            border-top: 1px solid var(--gray-200);
+        }
+
+        .btn {
+            flex: 1;
+            padding: 0.75rem 1rem;
+            border: none;
+            border-radius: 6px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .btn:hover { transform: translateY(-1px); }
+        .btn:active { transform: translateY(0); }
+
+        .btn-approve {
+            background: var(--success);
+            color: white;
+        }
+
+        .btn-approve:hover { background: #059669; }
+
+        .btn-reject {
+            background: var(--danger);
+            color: white;
+        }
+
+        .btn-reject:hover { background: #dc2626; }
+
+        .btn-skip {
+            background: var(--gray-200);
+            color: var(--gray-700);
+        }
+
+        .btn-skip:hover { background: var(--gray-300); }
+
+        .btn-optimize {
+            background: var(--warning);
+            color: white;
+        }
+
+        .btn-optimize:hover { background: #d97706; }
+
+        /* 快捷键提示 */
+        .shortcut-hint {
+            font-size: 0.75rem;
+            color: var(--gray-500);
+            text-align: center;
+            padding: 0.5rem;
+            background: var(--gray-50);
+        }
+
+        .shortcut-key {
+            display: inline-block;
+            padding: 0.125rem 0.5rem;
+            background: white;
+            border: 1px solid var(--gray-300);
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 0.7rem;
+            margin: 0 0.25rem;
+        }
+
+        /* 空状态 */
+        .empty-state {
+            text-align: center;
+            padding: 3rem 1rem;
+            color: var(--gray-600);
+        }
+
+        .empty-state-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+        }
+
+        /* 加载状态 */
+        .loading {
+            text-align: center;
+            padding: 2rem;
+            color: var(--gray-600);
+        }
+
+        /* 分页 */
+        .pagination {
+            display: flex;
+            justify-content: center;
+            gap: 0.5rem;
+            padding: 1rem;
+        }
+
+        .page-btn {
+            padding: 0.5rem 0.875rem;
+            border: 1px solid var(--gray-300);
+            background: white;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.875rem;
+        }
+
+        .page-btn:hover { background: var(--gray-50); }
+        .page-btn.active {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+
+        .page-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* Toast 通知 */
+        .toast {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            padding: 1rem 1.5rem;
+            background: var(--gray-900);
+            color: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            transform: translateY(100px);
+            opacity: 0;
+            transition: all 0.3s;
+            z-index: 1000;
+        }
+
+        .toast.show {
+            transform: translateY(0);
+            opacity: 1;
+        }
+
+        .toast.success { background: var(--success); }
+        .toast.error { background: var(--danger); }
+
+        /* 模态框 */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.5);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .modal-overlay.active { display: flex; }
+
+        .modal {
+            background: white;
+            border-radius: 10px;
+            padding: 1.5rem;
+            max-width: 500px;
+            width: 90%;
+        }
+
+        .modal h3 {
+            font-size: 1.125rem;
+            margin-bottom: 1rem;
+        }
+
+        .modal textarea {
+            width: 100%;
+            min-height: 100px;
+            padding: 0.75rem;
+            border: 1px solid var(--gray-300);
+            border-radius: 6px;
+            font-family: inherit;
+            font-size: 0.9rem;
+            resize: vertical;
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 0.5rem;
+            margin-top: 1rem;
+        }
+
+        .modal-actions .btn { flex: initial; min-width: 80px; }
+    </style>
+</head>
+<body>
+    <!-- 顶部导航 -->
+    <header class="header">
+        <div class="header-content">
+            <h1>🎯 AnnSight 数据管理平台</h1>
+            <nav class="nav-tabs">
+                <button class="nav-tab active" onclick="switchTab('review')">数据审核</button>
+                <a href="/raw-data.html" class="nav-tab">源数据管理</a>
+                <a href="/spotcheck.html" class="nav-tab">人工抽检</a>
+                <a href="/stats.html" class="nav-tab">统计看板</a>
+            </nav>
+        </div>
+    </header>
+
+    <!-- 主容器 -->
+    <div class="container">
+        <!-- 统计卡片 -->
+        <div class="stats-grid">
+            <div class="stat-card highlight">
+                <div class="value" id="stat-pending">-</div>
+                <div class="label">待审核</div>
+            </div>
+            <div class="stat-card">
+                <div class="value" id="stat-approved">-</div>
+                <div class="label">已通过</div>
+            </div>
+            <div class="stat-card">
+                <div class="value" id="stat-rejected">-</div>
+                <div class="label">已拒绝</div>
+            </div>
+            <div class="stat-card">
+                <div class="value" id="stat-accuracy">-</div>
+                <div class="label">AI 准确率</div>
+            </div>
+        </div>
+
+        <!-- 主内容区 -->
+        <div class="main-content">
+            <!-- 数据列表 -->
+            <div class="data-list">
+                <div class="data-list-header">
+                    <h2>📋 待审核数据</h2>
+                    <div style="display: flex; gap: 0.5rem; align-items: center;">
+                        <span id="list-count" style="color: var(--gray-600); font-size: 0.875rem;">0 条</span>
+                        <button class="btn-sm" id="batch-toggle-btn" onclick="toggleBatchMode()">批量操作</button>
+                    </div>
+                </div>
+                <div class="batch-actions" id="batch-actions">
+                    <span style="font-size: 0.85rem; color: var(--gray-600); align-self: center;">已选 <span id="batch-count">0</span> 条</span>
+                    <button class="btn-sm primary" onclick="batchApprove()">批量通过</button>
+                    <button class="btn-sm" onclick="batchReject()">批量拒绝</button>
+                    <button class="btn-sm" onclick="toggleBatchMode()">取消</button>
+                </div>
+                <div id="data-list-content">
+                    <div class="loading">加载中...</div>
+                </div>
+                <div class="pagination" id="pagination" style="display: none;">
+                    <button class="page-btn" onclick="prevPage()">上一页</button>
+                    <span id="page-info" style="align-self: center; font-size: 0.875rem; color: var(--gray-600);"></span>
+                    <button class="page-btn" onclick="nextPage()">下一页</button>
+                </div>
+            </div>
+
+            <!-- 审核面板 -->
+            <div class="review-panel">
+                <div class="review-panel-header">
+                    🔍 审核详情
+                </div>
+                <div class="review-panel-content" id="review-content">
+                    <div class="empty-state">
+                        <div class="empty-state-icon">📝</div>
+                        <p>请从左侧选择一条数据进行审核</p>
+                    </div>
+                </div>
+                <div class="shortcut-hint">
+                    <span class="shortcut-key">A</span> 通过
+                    <span class="shortcut-key">O</span> 优化
+                    <span class="shortcut-key">R</span> 拒绝
+                    <span class="shortcut-key">S</span> 跳过
+                </div>
+                <div class="action-buttons" id="action-buttons" style="display: none;">
+                    <button class="btn btn-skip" onclick="skipItem()">跳过 <span style="opacity: 0.6;">(S)</span></button>
+                    <button class="btn btn-optimize" onclick="openOptimizeModal()">✨ 优化 <span style="opacity: 0.6;">(O)</span></button>
+                    <button class="btn btn-reject" onclick="rejectItem()">拒绝 <span style="opacity: 0.6;">(R)</span></button>
+                    <button class="btn btn-approve" onclick="approveItem()">通过 <span style="opacity: 0.6;">(A)</span></button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 拒绝原因模态框 -->
+    <div class="modal-overlay" id="reject-modal">
+        <div class="modal">
+            <h3>❌ 拒绝原因</h3>
+            <textarea id="reject-reason" placeholder="请输入拒绝原因..."></textarea>
+            <div class="modal-actions">
+                <button class="btn btn-skip" onclick="closeRejectModal()">取消</button>
+                <button class="btn btn-reject" onclick="confirmReject()">确认拒绝</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 优化数据模态框 -->
+    <div class="modal-overlay" id="optimize-modal">
+        <div class="modal" style="max-width: 800px;">
+            <h3>✨ 优化数据</h3>
+
+            <!-- 步骤 1: 输入优化要求 -->
+            <div id="optimize-step-1">
+                <div class="form-group">
+                    <label>当前数据</label>
+                    <div style="background: var(--gray-50); padding: 1rem; border-radius: 6px; font-size: 0.9rem;">
+                        <div style="margin-bottom: 0.5rem;">
+                            <strong>标题：</strong><span id="optimize-current-title"></span>
+                        </div>
+                        <div>
+                            <strong>内容：</strong>
+                            <div id="optimize-current-content" style="max-height: 150px; overflow-y: auto; color: var(--gray-600);"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>优化要求</label>
+                    <textarea id="optimize-requirements" rows="4" placeholder="例如：&#10;- 使内容更加具体，添加实际案例&#10;- 调整为更适合职场场景的表达&#10;- 补充相关的技巧和方法..."></textarea>
+                    <small>描述你希望如何优化这条数据</small>
+                </div>
+
+                <div class="modal-actions">
+                    <button class="btn btn-skip" onclick="closeOptimizeModal()">取消</button>
+                    <button class="btn btn-primary" onclick="submitOptimizeRequest()" id="optimize-generate-btn">
+                        ✨ 生成优化建议
+                    </button>
+                </div>
+            </div>
+
+            <!-- 步骤 2: 查看优化结果 -->
+            <div id="optimize-step-2" style="display: none;">
+                <div class="form-group">
+                    <label>优化说明</label>
+                    <div style="background: var(--gray-50); padding: 0.75rem; border-radius: 6px; font-size: 0.9rem;">
+                        <span id="optimize-note"></span>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>优化后内容</label>
+                    <div style="background: var(--gray-50); padding: 1rem; border-radius: 6px; font-size: 0.9rem;">
+                        <div style="margin-bottom: 0.5rem;">
+                            <strong>标题：</strong><span id="optimize-new-title"></span>
+                        </div>
+                        <div style="margin-bottom: 0.5rem;">
+                            <strong>类型：</strong><span id="optimize-new-type"></span>
+                            <strong style="margin-left: 1rem;">分类：</strong><span id="optimize-new-category"></span>
+                        </div>
+                        <div>
+                            <strong>内容：</strong>
+                            <div id="optimize-new-content" style="max-height: 200px; overflow-y: auto; color: var(--gray-600); margin-top: 0.25rem;"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="modal-actions">
+                    <button class="btn btn-skip" onclick="backToOptimizeStep1()">返回修改</button>
+                    <button class="btn btn-primary" onclick="applyOptimization()" id="optimize-apply-btn">
+                        ✅ 应用优化
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast 通知 -->
+    <div class="toast" id="toast"></div>
+
+    <script>
+        // ==================== 状态管理 ====================
+        const state = {
+            currentPage: 1,
+            pageSize: 20,
+            totalItems: 0,
+            items: [],
+            selectedItem: null,
+            selectedIndex: -1,
+            stats: { pending: 0, approved: 0, rejected: 0, accuracy: 0 },
+            isProcessing: false
+        };
+
+        // ==================== API 调用 ====================
+        const API_BASE = '/api/review';
+
+        async function api(endpoint, options = {}) {
+            const res = await fetch(`${API_BASE}${endpoint}`, {
+                ...options,
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...options.headers
+                }
+            });
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            return res.json();
+        }
+
+        // ==================== 加载数据 ====================
+        async function loadData() {
+            try {
+                const { data } = await api(`/processed/low-confidence?page=${state.currentPage}&pageSize=${state.pageSize}`);
+                state.items = data;
+                state.totalItems = data.length;
+                renderList();
+                updateStats();
+            } catch (err) {
+                console.error('加载数据失败:', err);
+                document.getElementById('data-list-content').innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">⚠️</div>
+                        <p>加载失败，请刷新页面重试</p>
+                    </div>
+                `;
+            }
+        }
+
+        // ==================== 渲染列表 ====================
+        function renderList() {
+            const container = document.getElementById('data-list-content');
+            const batchActions = document.getElementById('batch-actions');
+            const batchToggleBtn = document.getElementById('batch-toggle-btn');
+
+            // 更新批量操作按钮状态
+            batchToggleBtn.textContent = batchState.mode ? '退出批量' : '批量操作';
+            batchToggleBtn.className = batchState.mode ? 'btn-sm primary' : 'btn-sm';
+            batchActions.className = 'batch-actions' + (batchState.mode ? ' active' : '');
+            document.getElementById('batch-count').textContent = batchState.selectedIds.length;
+
+            if (state.items.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">🎉</div>
+                        <p>暂无待审核数据</p>
+                    </div>
+                `;
+                document.getElementById('pagination').style.display = 'none';
+                return;
+            }
+
+            if (batchState.mode) {
+                // 批量选择模式
+                container.innerHTML = state.items.map((item) => {
+                    const isChecked = batchState.selectedIds.includes(item.id);
+                    return `
+                        <div class="data-item ${isChecked ? 'selected' : ''}"
+                             onclick="event.stopPropagation(); toggleSelectItem('${item.id}')"
+                             style="${isChecked ? 'background: rgba(102, 126, 234, 0.15);' : ''}">
+                            <input type="checkbox" class="batch-checkbox"
+                                   ${isChecked ? 'checked' : ''}
+                                   onclick="event.stopPropagation(); toggleSelectItem('${item.id}')">
+                            <div style="flex: 1;">
+                                <div class="data-item-header">
+                                    <div class="data-item-title">${escapeHtml(item.title)}</div>
+                                </div>
+                                <div class="data-item-meta">
+                                    <span class="badge badge-type">${escapeHtml(item.type)}</span>
+                                    <span class="badge badge-category">${escapeHtml(item.category)}</span>
+                                    <span class="badge badge-confidence">${(item.ai_confidence_score * 100).toFixed(0)}%</span>
+                                </div>
+                                <div class="data-item-preview">${escapeHtml(item.content)}</div>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            } else {
+                // 普通选择模式
+                container.innerHTML = state.items.map((item, index) => `
+                    <div class="data-item ${state.selectedItem?.id === item.id ? 'selected' : ''}"
+                         onclick="selectItem(${index})">
+                        <div class="data-item-header">
+                            <div class="data-item-title">${escapeHtml(item.title)}</div>
+                        </div>
+                        <div class="data-item-meta">
+                            <span class="badge badge-type">${escapeHtml(item.type)}</span>
+                            <span class="badge badge-category">${escapeHtml(item.category)}</span>
+                            <span class="badge badge-confidence">${(item.ai_confidence_score * 100).toFixed(0)}%</span>
+                        </div>
+                        <div class="data-item-preview">${escapeHtml(item.content)}</div>
+                    </div>
+                `).join('');
+            }
+
+            document.getElementById('list-count').textContent = `${state.items.length} 条`;
+            document.getElementById('pagination').style.display = state.items.length >= state.pageSize ? 'flex' : 'none';
+            document.getElementById('page-info').textContent = `第 ${state.currentPage} 页`;
+        }
+
+        // ==================== 选择项目 ====================
+        function selectItem(index) {
+            if (batchState.mode) return; // 批量模式下不响应
+            state.selectedItem = state.items[index];
+            state.selectedIndex = index;
+            renderList();
+            renderReviewPanel();
+        }
+
+        // ==================== 渲染审核面板 ====================
+        function renderReviewPanel() {
+            const container = document.getElementById('review-content');
+            const item = state.selectedItem;
+
+            if (!item) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">📝</div>
+                        <p>请从左侧选择一条数据进行审核</p>
+                    </div>
+                `;
+                document.getElementById('action-buttons').style.display = 'none';
+                return;
+            }
+
+            container.innerHTML = `
+                <div class="content-section">
+                    <label>标题</label>
+                    <div class="value">${escapeHtml(item.title)}</div>
+                </div>
+
+                <div class="content-section">
+                    <label>内容</label>
+                    <div class="value" style="white-space: pre-wrap; max-height: 200px; overflow-y: auto;">${escapeHtml(item.content)}</div>
+                </div>
+
+                <div class="content-section">
+                    <label>AI 分类</label>
+                    <div class="score-display">
+                        <div class="score-item">
+                            <div class="score">${escapeHtml(item.type)}</div>
+                            <div class="label">类型</div>
+                        </div>
+                        <div class="score-item">
+                            <div class="score">${escapeHtml(item.category)}</div>
+                            <div class="label">分类</div>
+                        </div>
+                        <div class="score-item">
+                            <div class="score">${(item.ai_confidence_score * 100).toFixed(0)}%</div>
+                            <div class="label">置信度</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="content-section">
+                    <label>质量评分</label>
+                    <div class="score-display">
+                        <div class="score-item">
+                            <div class="score">${(item.completeness_score * 100).toFixed(0)}</div>
+                            <div class="label">完整性</div>
+                        </div>
+                        <div class="score-item">
+                            <div class="score">${(item.authenticity_score / 5 * 100).toFixed(0)}</div>
+                            <div class="label">真实性</div>
+                        </div>
+                        <div class="score-item">
+                            <div class="score">${(item.quality_score * 100).toFixed(0)}</div>
+                            <div class="label">综合</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="content-section">
+                    <label>修正分类（可选）</label>
+                    <select id="edit-type" onchange="handleTypeChange()">
+                        <option value="">保持原分类</option>
+                        <option value="教训案例" ${item.type === '教训案例' ? 'selected' : ''}>教训案例</option>
+                        <option value="战术方法" ${item.type === '战术方法' ? 'selected' : ''}>战术方法</option>
+                        <option value="沟通技巧" ${item.type === '沟通技巧' ? 'selected' : ''}>沟通技巧</option>
+                        <option value="职场智慧" ${item.type === '职场智慧' ? 'selected' : ''}>职场智慧</option>
+                        <option value="情感" ${item.type === '情感' ? 'selected' : ''}>情感</option>
+                        <option value="家庭" ${item.type === '家庭' ? 'selected' : ''}>家庭</option>
+                        <option value="社交" ${item.type === '社交' ? 'selected' : ''}>社交</option>
+                    </select>
+                </div>
+            `;
+
+            document.getElementById('action-buttons').style.display = 'flex';
+        }
+
+        // ==================== 操作处理 ====================
+        let pendingCorrection = null;
+
+        function handleTypeChange() {
+            const typeSelect = document.getElementById('edit-type');
+            pendingCorrection = { type: typeSelect.value };
+        }
+
+        async function approveItem() {
+            if (state.isProcessing || !state.selectedItem) return;
+            state.isProcessing = true;
+
+            try {
+                const corrections = pendingCorrection?.type ? { type: pendingCorrection.type } : null;
+
+                const res = await fetch(`${API_BASE}/processed/decide`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id: state.selectedItem.id, action: 'approve', corrections })
+                });
+
+                if (!res.ok) {
+                    const err = await res.json();
+                    throw new Error(err.error || '操作失败');
+                }
+
+                showToast('✅ 已通过', 'success');
+                pendingCorrection = null;
+                await removeCurrentItemAndRefresh();
+            } catch (err) {
+                showToast('❌ ' + err.message, 'error');
+            } finally {
+                state.isProcessing = false;
+            }
+        }
+
+        function rejectItem() {
+            if (state.isProcessing || !state.selectedItem) return;
+            document.getElementById('reject-modal').classList.add('active');
+            document.getElementById('reject-reason').value = '';
+            document.getElementById('reject-reason').focus();
+        }
+
+        function closeRejectModal() {
+            document.getElementById('reject-modal').classList.remove('active');
+        }
+
+        async function confirmReject() {
+            if (state.isProcessing || !state.selectedItem) return;
+
+            const reason = document.getElementById('reject-reason').value.trim();
+            if (!reason) {
+                showToast('⚠️ 请输入拒绝原因', 'error');
+                return;
+            }
+
+            state.isProcessing = true;
+            try {
+                const res = await fetch(`${API_BASE}/processed/decide`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id: state.selectedItem.id, action: 'reject', rejectReason: reason })
+                });
+
+                if (!res.ok) {
+                    const err = await res.json();
+                    throw new Error(err.error || '操作失败');
+                }
+
+                showToast('❌ 已拒绝', 'success');
+                closeRejectModal();
+                await removeCurrentItemAndRefresh();
+            } catch (err) {
+                showToast('❌ ' + err.message, 'error');
+            } finally {
+                state.isProcessing = false;
+            }
+        }
+
+        async function removeCurrentItemAndRefresh() {
+            // 从列表中移除当前项
+            const index = state.items.findIndex(i => i.id === state.selectedItem?.id);
+            if (index > -1) {
+                state.items.splice(index, 1);
+            }
+
+            // 刷新统计
+            await refreshStats();
+
+            // 自动选择下一条
+            if (state.items.length > 0) {
+                const nextIndex = Math.min(index, state.items.length - 1);
+                state.selectedItem = state.items[nextIndex];
+                state.selectedIndex = nextIndex;
+                renderList();
+                renderReviewPanel();
+            } else {
+                // 列表为空，重新加载
+                state.selectedItem = null;
+                state.selectedIndex = -1;
+                renderList();
+                renderReviewPanel();
+            }
+        }
+
+        function skipItem() {
+            if (state.isProcessing || !state.selectedItem) return;
+            // 移到列表末尾
+            const index = state.items.findIndex(i => i.id === state.selectedItem?.id);
+            if (index > -1) {
+                const [item] = state.items.splice(index, 1);
+                state.items.push(item);
+            }
+            state.selectedItem = null;
+            state.selectedIndex = -1;
+            renderList();
+            renderReviewPanel();
+        }
+
+        // ==================== 优化功能 ====================
+        let currentOptimizationData = null;
+
+        function openOptimizeModal() {
+            if (!state.selectedItem) {
+                showToast('⚠️ 请先选择一条数据', 'error');
+                return;
+            }
+
+            currentOptimizationData = null;
+            document.getElementById('optimize-step-1').style.display = 'block';
+            document.getElementById('optimize-step-2').style.display = 'none';
+            document.getElementById('optimize-requirements').value = '';
+            document.getElementById('optimize-generate-btn').disabled = false;
+            document.getElementById('optimize-generate-btn').textContent = '✨ 生成优化建议';
+
+            // 显示当前数据
+            document.getElementById('optimize-current-title').textContent = state.selectedItem.title || '-';
+            document.getElementById('optimize-current-content').textContent = state.selectedItem.content || '-';
+
+            document.getElementById('optimize-modal').classList.add('active');
+        }
+
+        function closeOptimizeModal() {
+            document.getElementById('optimize-modal').classList.remove('active');
+            currentOptimizationData = null;
+        }
+
+        async function submitOptimizeRequest() {
+            const requirements = document.getElementById('optimize-requirements').value.trim();
+            if (!requirements) {
+                showToast('⚠️ 请输入优化要求', 'error');
+                return;
+            }
+
+            const btn = document.getElementById('optimize-generate-btn');
+            btn.disabled = true;
+            btn.textContent = '⏳ 生成中...';
+
+            try {
+                const res = await fetch(`${API_BASE}/processed/${state.selectedItem.id}/optimize`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ requirements })
+                });
+
+                const result = await res.json();
+
+                if (!res.ok) {
+                    throw new Error(result.error || '优化失败');
+                }
+
+                // 显示优化结果
+                currentOptimizationData = result;
+                document.getElementById('optimize-note').textContent = result.optimizationNote || '优化完成';
+                document.getElementById('optimize-new-title').textContent = result.optimized.title || '-';
+                document.getElementById('optimize-new-type').textContent = result.optimized.type || '-';
+                document.getElementById('optimize-new-category').textContent = result.optimized.category || '-';
+                document.getElementById('optimize-new-content').textContent = result.optimized.content || '-';
+
+                document.getElementById('optimize-step-1').style.display = 'none';
+                document.getElementById('optimize-step-2').style.display = 'block';
+            } catch (err) {
+                showToast('❌ ' + err.message, 'error');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '✨ 生成优化建议';
+            }
+        }
+
+        function backToOptimizeStep1() {
+            document.getElementById('optimize-step-1').style.display = 'block';
+            document.getElementById('optimize-step-2').style.display = 'none';
+        }
+
+        async function applyOptimization() {
+            if (!currentOptimizationData) {
+                showToast('⚠️ 没有可应用的优化', 'error');
+                return;
+            }
+
+            const btn = document.getElementById('optimize-apply-btn');
+            btn.disabled = true;
+            btn.textContent = '⏳ 应用中...';
+
+            try {
+                const res = await fetch(`${API_BASE}/processed/${state.selectedItem.id}/apply-optimization`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ optimizedData: currentOptimizationData.optimized })
+                });
+
+                const result = await res.json();
+
+                if (!res.ok) {
+                    throw new Error(result.error || '应用优化失败');
+                }
+
+                showToast('✅ 优化已应用', 'success');
+                closeOptimizeModal();
+
+                // 刷新当前项显示
+                state.selectedItem.title = currentOptimizationData.optimized.title;
+                state.selectedItem.content = currentOptimizationData.optimized.content;
+                state.selectedItem.type = currentOptimizationData.optimized.type;
+                state.selectedItem.category = currentOptimizationData.optimized.category;
+                renderList();
+                renderReviewPanel();
+            } catch (err) {
+                showToast('❌ ' + err.message, 'error');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '✅ 应用优化';
+            }
+        }
+
+        // ==================== 统计更新 ====================
+        async function refreshStats() {
+            try {
+                const stats = await api('/stats/summary');
+                state.stats = stats;
+                updateStats();
+            } catch (err) {
+                console.error('刷新统计失败:', err);
+            }
+        }
+
+        function updateStats() {
+            document.getElementById('stat-pending').textContent = state.stats.pending;
+            document.getElementById('stat-approved').textContent = state.stats.approved;
+            document.getElementById('stat-rejected').textContent = state.stats.rejected;
+            document.getElementById('stat-accuracy').textContent = state.stats.accuracy + '%';
+        }
+
+        // ==================== 分页 ====================
+        function prevPage() {
+            if (state.currentPage > 1) {
+                state.currentPage--;
+                loadData();
+            }
+        }
+
+        function nextPage() {
+            state.currentPage++;
+            loadData();
+        }
+
+        // ==================== 快捷键 ====================
+        document.addEventListener('keydown', (e) => {
+            // 模态框打开时不响应快捷键
+            if (document.getElementById('reject-modal').classList.contains('active') ||
+                document.getElementById('optimize-modal').classList.contains('active')) {
+                if (e.key === 'Escape') {
+                    closeRejectModal();
+                    closeOptimizeModal();
+                }
+                return;
+            }
+
+            // 没有选中项或正在处理时不响应
+            if (!state.selectedItem || state.isProcessing) return;
+
+            switch (e.key.toLowerCase()) {
+                case 'a':
+                    e.preventDefault();
+                    approveItem();
+                    break;
+                case 'o':
+                    e.preventDefault();
+                    openOptimizeModal();
+                    break;
+                case 'r':
+                    e.preventDefault();
+                    rejectItem();
+                    break;
+                case 's':
+                    e.preventDefault();
+                    skipItem();
+                    break;
+            }
+        });
+
+        // ==================== 批量操作 ====================
+        const batchState = {
+            selectedIds: [],
+            mode: false
+        };
+
+        function toggleBatchMode() {
+            batchState.mode = !batchState.mode;
+            batchState.selectedIds = [];
+            renderList();
+            showToast(batchState.mode ? '已进入批量操作模式' : '已退出批量操作模式', '');
+        }
+
+        function toggleSelectItem(itemId) {
+            if (!batchState.mode) return;
+            const index = batchState.selectedIds.indexOf(itemId);
+            if (index > -1) {
+                batchState.selectedIds.splice(index, 1);
+            } else {
+                batchState.selectedIds.push(itemId);
+            }
+            renderList();
+        }
+
+        async function batchApprove() {
+            if (batchState.selectedIds.length === 0) {
+                showToast('⚠️ 请先选择数据', 'error');
+                return;
+            }
+
+            if (!confirm(`确认批量通过 ${batchState.selectedIds.length} 条数据？`)) return;
+
+            state.isProcessing = true;
+            let success = 0;
+            for (const id of batchState.selectedIds) {
+                try {
+                    await fetch(`${API_BASE}/processed/decide`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ id, action: 'approve' })
+                    });
+                    success++;
+                } catch (err) {
+                    console.error('Batch approve error:', err);
+                }
+            }
+
+            showToast(`✅ 已通过 ${success} 条数据`, 'success');
+            batchState.selectedIds = [];
+            batchState.mode = false;
+            await refreshStats();
+            await loadData();
+            state.isProcessing = false;
+        }
+
+        function batchReject() {
+            if (batchState.selectedIds.length === 0) {
+                showToast('⚠️ 请先选择数据', 'error');
+                return;
+            }
+            showToast('🚧 批量拒绝功能开发中...', '');
+        }
+
+        // ==================== 工具函数 ====================
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function showToast(message, type = '') {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.className = 'toast show ' + type;
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 2500);
+        }
+
+        function switchTab(tab) {
+            document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+            event.target.classList.add('active');
+
+            if (tab === 'review') {
+                loadData();
+            }
+            // spotcheck 和 stats 标签页已改为链接跳转
+        }
+
+        // ==================== 初始化 ====================
+        (async function init() {
+            // 获取统计数据
+            await refreshStats();
+            await loadData();
+
+            // 键盘快捷键说明
+            console.log('📌 快捷键：A=通过，R=拒绝，S=跳过');
+            console.log('📦 批量操作：点击"批量操作"按钮进入批量选择模式');
+        })();
+    </script>
+</body>
+</html>

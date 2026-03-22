@@ -1,0 +1,746 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AnnSight 人工抽检</title>
+    <style>
+        :root {
+            --primary: #667eea;
+            --primary-dark: #5a67d8;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --gray-50: #f9fafb;
+            --gray-100: #f3f4f6;
+            --gray-200: #e5e7eb;
+            --gray-300: #d1d5db;
+            --gray-600: #4b5563;
+            --gray-700: #374151;
+            --gray-900: #111827;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: var(--gray-100);
+            color: var(--gray-700);
+            line-height: 1.6;
+        }
+
+        /* 顶部导航 */
+        .header {
+            background: linear-gradient(135deg, var(--primary) 0%, #764ba2 100%);
+            color: white;
+            padding: 1rem 2rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .header-content {
+            max-width: 1600px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header h1 { font-size: 1.5rem; font-weight: 700; }
+
+        .nav-tabs {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .nav-tab {
+            padding: 0.5rem 1rem;
+            border: none;
+            background: rgba(255,255,255,0.1);
+            color: white;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+            text-decoration: none;
+        }
+
+        .nav-tab:hover { background: rgba(255,255,255,0.2); }
+        .nav-tab.active { background: white; color: var(--primary); }
+
+        /* 主容器 */
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 1.5rem;
+        }
+
+        /* 页面标题 */
+        .page-header {
+            margin-bottom: 1.5rem;
+        }
+
+        .page-header h2 {
+            font-size: 1.5rem;
+            color: var(--gray-900);
+            margin-bottom: 0.5rem;
+        }
+
+        .page-header p {
+            color: var(--gray-600);
+            font-size: 0.9rem;
+        }
+
+        /* 统计卡片 */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 1.25rem;
+            border-radius: 10px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        .stat-card .value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--gray-900);
+        }
+
+        .stat-card .label {
+            color: var(--gray-600);
+            font-size: 0.875rem;
+            margin-top: 0.25rem;
+        }
+
+        /* AI 准确率指示器 */
+        .accuracy-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 0.875rem;
+            margin-top: 0.5rem;
+        }
+
+        .accuracy-indicator.high {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .accuracy-indicator.medium {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .accuracy-indicator.low {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        /* 控制栏 */
+        .control-bar {
+            background: white;
+            padding: 1rem 1.5rem;
+            border-radius: 10px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            margin-bottom: 1.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        .control-left {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 0.625rem 1.25rem;
+            border-radius: 6px;
+            border: none;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: var(--primary-dark);
+        }
+
+        .btn-secondary {
+            background: var(--gray-200);
+            color: var(--gray-700);
+        }
+
+        .btn-secondary:hover {
+            background: var(--gray-300);
+        }
+
+        .form-group {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .form-group label {
+            font-size: 0.875rem;
+            color: var(--gray-700);
+        }
+
+        .form-input {
+            padding: 0.5rem 0.75rem;
+            border: 1px solid var(--gray-300);
+            border-radius: 6px;
+            font-size: 0.875rem;
+            width: 80px;
+        }
+
+        /* 样本列表 */
+        .samples-grid {
+            display: grid;
+            gap: 1rem;
+        }
+
+        .sample-card {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            padding: 1.25rem;
+        }
+
+        .sample-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 1rem;
+            padding-bottom: 0.75rem;
+            border-bottom: 1px solid var(--gray-100);
+        }
+
+        .sample-meta {
+            display: flex;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+        }
+
+        .badge {
+            padding: 0.25rem 0.75rem;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            font-weight: 500;
+        }
+
+        .badge-type { background: #dbeafe; color: #1e40af; }
+        .badge-category { background: #f3e8ff; color: #6b21a8; }
+        .badge-confidence { background: #fef3c7; color: #92400e; }
+        .badge-ai { background: #e0e7ff; color: #3730a3; }
+
+        .sample-content {
+            margin-bottom: 1rem;
+        }
+
+        .sample-content h4 {
+            font-size: 1rem;
+            color: var(--gray-900);
+            margin-bottom: 0.5rem;
+        }
+
+        .sample-text {
+            color: var(--gray-700);
+            line-height: 1.7;
+            max-height: 150px;
+            overflow-y: auto;
+            padding: 0.75rem;
+            background: var(--gray-50);
+            border-radius: 6px;
+            font-size: 0.9rem;
+        }
+
+        /* 修正表单 */
+        .correction-form {
+            background: var(--gray-50);
+            padding: 1rem;
+            border-radius: 8px;
+            margin-top: 1rem;
+        }
+
+        .correction-form-header {
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: var(--gray-700);
+            margin-bottom: 0.75rem;
+        }
+
+        .correction-fields {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 0.75rem;
+            margin-bottom: 0.75rem;
+        }
+
+        .correction-field {
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+        }
+
+        .correction-field label {
+            font-size: 0.75rem;
+            color: var(--gray-600);
+        }
+
+        .correction-field select {
+            padding: 0.5rem;
+            border: 1px solid var(--gray-300);
+            border-radius: 4px;
+            font-size: 0.875rem;
+        }
+
+        .correction-actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        /* 加载状态 */
+        .loading {
+            text-align: center;
+            padding: 3rem;
+            color: var(--gray-600);
+        }
+
+        .loading-spinner {
+            display: inline-block;
+            width: 40px;
+            height: 40px;
+            border: 4px solid var(--gray-200);
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* 空状态 */
+        .empty-state {
+            text-align: center;
+            padding: 3rem;
+            color: var(--gray-600);
+        }
+
+        .empty-state-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+        }
+
+        /* 响应式 */
+        @media (max-width: 768px) {
+            .header { padding: 1rem; }
+            .container { padding: 1rem; }
+            .control-bar { flex-direction: column; align-items: stretch; }
+            .control-left { flex-direction: column; }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="header-content">
+            <h1>🎯 AnnSight 数据管理平台</h1>
+            <nav class="nav-tabs">
+                <a href="/" class="nav-tab">数据审核</a>
+                <a href="/raw-data.html" class="nav-tab">源数据管理</a>
+                <a href="/stats.html" class="nav-tab">统计看板</a>
+                <a href="/spotcheck.html" class="nav-tab active">人工抽检</a>
+            </nav>
+        </div>
+    </header>
+
+    <main class="container">
+        <div class="page-header">
+            <h2>🔍 AI 自动通过数据抽检</h2>
+            <p>验证 AI 分类准确性 • 发现系统性偏差 • 持续优化模型</p>
+        </div>
+
+        <!-- AI 准确率统计 -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="value" id="stat-accuracy">-</div>
+                <div class="label">
+                    AI 准确率
+                    <span id="ai-accuracy-badge" class="accuracy-indicator high">-</span>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="value" id="stat-total-checks">-</div>
+                <div class="label">抽检总数</div>
+            </div>
+            <div class="stat-card">
+                <div class="value" id="stat-corrections">-</div>
+                <div class="label">修正次数</div>
+            </div>
+            <div class="stat-card">
+                <div class="value" id="stat-samples">-</div>
+                <div class="label">当前样本</div>
+            </div>
+        </div>
+
+        <!-- 控制栏 -->
+        <div class="control-bar">
+            <div class="control-left">
+                <div class="form-group">
+                    <label for="sample-per-type">每类型抽样:</label>
+                    <input type="number" id="sample-per-type" class="form-input" value="3" min="1" max="10">
+                </div>
+                <button class="btn btn-primary" onclick="loadSamples()">🔄 重新抽样</button>
+            </div>
+            <button class="btn btn-secondary" onclick="showBatchCorrectModal()">✏️ 批量修正</button>
+        </div>
+
+        <!-- 样本列表 -->
+        <div id="samples-container" class="samples-grid">
+            <div class="loading">
+                <div class="loading-spinner"></div>
+                <p>加载样本中...</p>
+            </div>
+        </div>
+    </main>
+
+    <!-- 批量修正模态框 -->
+    <div id="batch-modal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.5); z-index:1000; align-items:center; justify-content:center;">
+        <div style="background:white; padding:1.5rem; border-radius:10px; max-width:500px; width:90%;">
+            <h3 style="margin-bottom:1rem;">✏️ 批量修正</h3>
+            <p style="color:var(--gray-600); font-size:0.875rem; margin-bottom:1rem;">发现 AI 系统性偏差时，可以批量修正同类型数据的分类</p>
+
+            <div class="correction-fields">
+                <div class="correction-field">
+                    <label>原类型</label>
+                    <select id="batch-from-type">
+                        <option value="">全部类型</option>
+                        <option value="教训案例">教训案例</option>
+                        <option value="技巧方法">技巧方法</option>
+                        <option value="理论知识">理论知识</option>
+                        <option value="工具资源">工具资源</option>
+                        <option value="场景对话">场景对话</option>
+                        <option value="评估测试">评估测试</option>
+                    </select>
+                </div>
+                <div class="correction-field">
+                    <label>原分类</label>
+                    <select id="batch-from-category">
+                        <option value="">全部分类</option>
+                        <option value="职场">职场</option>
+                        <option value="社交">社交</option>
+                        <option value="情感">情感</option>
+                        <option value="家庭">家庭</option>
+                        <option value="自我成长">自我成长</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="correction-fields" style="margin-top:0.75rem;">
+                <div class="correction-field">
+                    <label>修正为分类</label>
+                    <select id="batch-to-category">
+                        <option value="">选择新分类</option>
+                        <option value="职场">职场</option>
+                        <option value="社交">社交</option>
+                        <option value="情感">情感</option>
+                        <option value="家庭">家庭</option>
+                        <option value="自我成长">自我成长</option>
+                    </select>
+                </div>
+            </div>
+
+            <div style="display:flex; gap:0.5rem; margin-top:1.5rem; justify-content:flex-end;">
+                <button class="btn btn-secondary" onclick="closeBatchModal()">取消</button>
+                <button class="btn btn-primary" onclick="executeBatchCorrect()">执行修正</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = '';
+
+        // 类型和分类选项
+        const TYPE_OPTIONS = ['教训案例', '技巧方法', '理论知识', '工具资源', '场景对话', '评估测试'];
+        const CATEGORY_OPTIONS = ['职场', '社交', '情感', '家庭', '自我成长'];
+
+        // 加载 AI 准确率统计
+        async function loadAiStats() {
+            try {
+                const res = await fetch(`${API_BASE}/api/review/stats/ai-accuracy`);
+                const stats = await res.json();
+
+                const accuracy = (stats.accuracy * 100).toFixed(1) + '%';
+                document.getElementById('stat-accuracy').textContent = accuracy;
+                document.getElementById('stat-total-checks').textContent = stats.total_spot_checks || 0;
+                document.getElementById('stat-corrections').textContent = stats.corrections || 0;
+
+                // 准确率徽章
+                const badge = document.getElementById('ai-accuracy-badge');
+                const accuracyNum = parseFloat(stats.accuracy * 100);
+                if (accuracyNum >= 90) {
+                    badge.className = 'accuracy-indicator high';
+                    badge.textContent = '优秀';
+                } else if (accuracyNum >= 75) {
+                    badge.className = 'accuracy-indicator medium';
+                    badge.textContent = '良好';
+                } else {
+                    badge.className = 'accuracy-indicator low';
+                    badge.textContent = '需改进';
+                }
+            } catch (error) {
+                console.error('Failed to load AI stats:', error);
+            }
+        }
+
+        // 加载抽检样本
+        async function loadSamples() {
+            const container = document.getElementById('samples-container');
+            container.innerHTML = '<div class="loading"><div class="loading-spinner"></div><p>加载样本中...</p></div>';
+
+            try {
+                const minPerType = document.getElementById('sample-per-type').value || 3;
+                const res = await fetch(`${API_BASE}/api/review/processed/spot-check/stratified?minPerType=${minPerType}`);
+                const result = await res.json();
+
+                document.getElementById('stat-samples').textContent = result.data?.length || 0;
+
+                if (!result.data || result.data.length === 0) {
+                    container.innerHTML = `
+                        <div class="empty-state">
+                            <div class="empty-state-icon">📮</div>
+                            <p>暂无抽检样本</p>
+                            <p style="font-size:0.875rem; margin-top:0.5rem;">AI 自动通过（置信度 ≥ 0.8）的数据会显示在这里</p>
+                            <p style="font-size:0.875rem; color:var(--gray-600); margin-top:1rem;">
+                                💡 <strong>提示：</strong>当前所有数据均为人工审核，如需体验抽检功能，可先使用"AI 自动通过"功能处理部分数据
+                            </p>
+                            <button class="btn btn-primary" style="margin-top:1rem;" onclick="autoApproveHighConfidence()">
+                                🤖 执行 AI 自动通过
+                            </button>
+                        </div>
+                    `;
+                    return;
+                }
+
+                // 按类型分组
+                const grouped = result.data.reduce((acc, item) => {
+                    if (!acc[item.type]) acc[item.type] = [];
+                    acc[item.type].push(item);
+                    return acc;
+                }, {});
+
+                container.innerHTML = Object.entries(grouped).map(([type, items]) => `
+                    <div class="sample-card">
+                        <div class="sample-header">
+                            <h3 style="font-size:1.1rem;">${type} (${items.length}条)</h3>
+                            <span class="badge badge-ai">AI 自动通过</span>
+                        </div>
+                        ${items.map((item, idx) => renderSampleItem(item, idx)).join('')}
+                    </div>
+                `).join('');
+            } catch (error) {
+                console.error('Failed to load samples:', error);
+                container.innerHTML = '<div class="empty-state"><p>加载失败，请刷新重试</p></div>';
+            }
+        }
+
+        // 渲染单个样本
+        function renderSampleItem(item, idx) {
+            return `
+                <div style="margin-top:${idx > 0 ? '1rem' : '0'}; padding-top:${idx > 0 ? '1rem' : '0'}; border-top:${idx > 0 ? '1px solid var(--gray-100)' : 'none'};">
+                    <div class="sample-meta" style="margin-bottom:0.75rem;">
+                        <span class="badge badge-type">${item.type}</span>
+                        <span class="badge badge-category">${item.category}</span>
+                        <span class="badge badge-confidence">置信度：${(parseFloat(item.ai_confidence_score) * 100).toFixed(0)}%</span>
+                    </div>
+
+                    <div class="sample-content">
+                        <h4>${item.title || '无标题'}</h4>
+                        <div class="sample-text">${escapeHtml(item.content)}</div>
+                    </div>
+
+                    <div class="correction-form">
+                        <div class="correction-form-header">🔧 修正 AI 分类（如发现错误）</div>
+                        <div class="correction-fields">
+                            <div class="correction-field">
+                                <label>类型</label>
+                                <select id="type-${item.id}">
+                                    ${TYPE_OPTIONS.map(t => `<option value="${t}" ${t === item.type ? 'selected' : ''}>${t}</option>`).join('')}
+                                </select>
+                            </div>
+                            <div class="correction-field">
+                                <label>分类</label>
+                                <select id="category-${item.id}">
+                                    ${CATEGORY_OPTIONS.map(c => `<option value="${c}" ${c === item.category ? 'selected' : ''}>${c}</option>`).join('')}
+                                </select>
+                            </div>
+                        </div>
+                        <div class="correction-actions">
+                            <button class="btn btn-primary" onclick="correctItem('${item.id}')">✅ 确认修正</button>
+                            <button class="btn btn-secondary" onclick="skipItem('${item.id}')">⏭️ 跳过</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // 修正单个样本
+        async function correctItem(id) {
+            const typeSelect = document.getElementById(`type-${id}`);
+            const categorySelect = document.getElementById(`category-${id}`);
+
+            const corrections = {
+                type: typeSelect?.value,
+                category: categorySelect?.value
+            };
+
+            try {
+                const res = await fetch(`${API_BASE}/api/review/processed/spot-check/correct`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id, corrections })
+                });
+
+                if (res.ok) {
+                    showToast('✅ 修正成功', 'success');
+                    // 重新加载
+                    await loadSamples();
+                    await loadAiStats();
+                } else {
+                    throw new Error('修正失败');
+                }
+            } catch (error) {
+                showToast('❌ ' + error.message, 'error');
+            }
+        }
+
+        // 跳过样本
+        function skipItem(id) {
+            showToast('⏭️ 已跳过', '');
+        }
+
+        // AI 自动通过高置信度数据
+        async function autoApproveHighConfidence() {
+            try {
+                const res = await fetch(`${API_BASE}/api/review/processed/auto-approve`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ minConfidence: 0.8 })
+                });
+
+                const result = await res.json();
+
+                if (result.success) {
+                    showToast(`✅ 已自动通过 ${result.updated || 0} 条数据`, 'success');
+                    await loadSamples();
+                    await loadAiStats();
+                } else {
+                    showToast('❌ 暂无可自动通过的数据', '');
+                }
+            } catch (error) {
+                showToast('❌ 操作失败：' + error.message, 'error');
+            }
+        }
+
+        // 显示批量修正模态框
+        function showBatchCorrectModal() {
+            document.getElementById('batch-modal').style.display = 'flex';
+        }
+
+        // 关闭批量修正模态框
+        function closeBatchModal() {
+            document.getElementById('batch-modal').style.display = 'none';
+        }
+
+        // 执行批量修正
+        async function executeBatchCorrect() {
+            const fromType = document.getElementById('batch-from-type').value;
+            const fromCategory = document.getElementById('batch-from-category').value;
+            const toCategory = document.getElementById('batch-to-category').value;
+
+            if (!toCategory) {
+                showToast('❌ 请选择目标分类', 'error');
+                return;
+            }
+
+            const conditions = {};
+            if (fromType) conditions.type = fromType;
+            if (fromCategory) conditions.category = fromCategory;
+
+            try {
+                const res = await fetch(`${API_BASE}/api/review/processed/batch-correct`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ conditions, corrections: { category: toCategory } })
+                });
+
+                const result = await res.json();
+
+                if (result.success) {
+                    showToast(`✅ 已修正 ${result.updated} 条数据`, 'success');
+                    closeBatchModal();
+                    await loadSamples();
+                    await loadAiStats();
+                } else {
+                    throw new Error('批量修正失败');
+                }
+            } catch (error) {
+                showToast('❌ ' + error.message, 'error');
+            }
+        }
+
+        // 显示提示
+        function showToast(message, type) {
+            const toast = document.createElement('div');
+            toast.style.cssText = `
+                position: fixed;
+                top: 1rem;
+                right: 1rem;
+                padding: 0.75rem 1.5rem;
+                background: ${type === 'success' ? '#10b981' : type === 'error' ? '#ef4444' : '#667eea'};
+                color: white;
+                border-radius: 8px;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+                z-index: 2000;
+                animation: slideIn 0.3s ease;
+            `;
+            toast.textContent = message;
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 2500);
+        }
+
+        // HTML 转义
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // 页面加载时获取数据
+        loadAiStats();
+        loadSamples();
+    </script>
+</body>
+</html>

@@ -1,0 +1,751 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AnnSight 统计看板</title>
+    <style>
+        :root {
+            --primary: #667eea;
+            --primary-dark: #5a67d8;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --gray-50: #f9fafb;
+            --gray-100: #f3f4f6;
+            --gray-200: #e5e7eb;
+            --gray-300: #d1d5db;
+            --gray-600: #4b5563;
+            --gray-700: #374151;
+            --gray-900: #111827;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: var(--gray-100);
+            color: var(--gray-700);
+            line-height: 1.6;
+        }
+
+        /* 顶部导航 */
+        .header {
+            background: linear-gradient(135deg, var(--primary) 0%, #764ba2 100%);
+            color: white;
+            padding: 1rem 2rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .header-content {
+            max-width: 1600px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header h1 { font-size: 1.5rem; font-weight: 700; }
+
+        .nav-tabs {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .nav-tab {
+            padding: 0.5rem 1rem;
+            border: none;
+            background: rgba(255,255,255,0.1);
+            color: white;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+            text-decoration: none;
+        }
+
+        .nav-tab:hover { background: rgba(255,255,255,0.2); }
+        .nav-tab.active { background: white; color: var(--primary); }
+
+        /* 主容器 */
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 1.5rem;
+        }
+
+        /* 页面标题 */
+        .page-header {
+            margin-bottom: 1.5rem;
+        }
+
+        .page-header h2 {
+            font-size: 1.5rem;
+            color: var(--gray-900);
+            margin-bottom: 0.5rem;
+        }
+
+        .page-header p {
+            color: var(--gray-600);
+            font-size: 0.9rem;
+        }
+
+        /* 统计卡片网格 */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 1.25rem;
+            border-radius: 10px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            transition: transform 0.2s;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+
+        .stat-card .value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--gray-900);
+        }
+
+        .stat-card .label {
+            color: var(--gray-600);
+            font-size: 0.875rem;
+            margin-top: 0.25rem;
+        }
+
+        .stat-card.pending .value { color: var(--warning); }
+        .stat-card.approved .value { color: var(--success); }
+        .stat-card.rejected .value { color: var(--danger); }
+        .stat-card.total .value { color: var(--primary); }
+
+        /* 图表容器 */
+        .charts-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .chart-card {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 10px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        .chart-card h3 {
+            font-size: 1.1rem;
+            color: var(--gray-900);
+            margin-bottom: 1rem;
+            padding-bottom: 0.75rem;
+            border-bottom: 1px solid var(--gray-200);
+        }
+
+        /* 进度条 */
+        .progress-bar {
+            height: 8px;
+            background: var(--gray-200);
+            border-radius: 4px;
+            overflow: hidden;
+            margin-top: 0.5rem;
+        }
+
+        .progress-fill {
+            height: 100%;
+            border-radius: 4px;
+            transition: width 0.3s ease;
+        }
+
+        .progress-fill.primary { background: var(--primary); }
+        .progress-fill.success { background: var(--success); }
+        .progress-fill.warning { background: var(--warning); }
+        .progress-fill.danger { background: var(--danger); }
+
+        /* 列表样式 */
+        .stat-list {
+            list-style: none;
+        }
+
+        .stat-list-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.75rem 0;
+            border-bottom: 1px solid var(--gray-100);
+        }
+
+        .stat-list-item:last-child {
+            border-bottom: none;
+        }
+
+        .stat-list-label {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .stat-list-color {
+            width: 12px;
+            height: 12px;
+            border-radius: 3px;
+        }
+
+        .stat-list-value {
+            font-weight: 600;
+            color: var(--gray-900);
+        }
+
+        .stat-list-percent {
+            color: var(--gray-600);
+            font-size: 0.875rem;
+            margin-left: 0.5rem;
+        }
+
+        /* 加载状态 */
+        .loading {
+            text-align: center;
+            padding: 3rem;
+            color: var(--gray-600);
+        }
+
+        .loading-spinner {
+            display: inline-block;
+            width: 40px;
+            height: 40px;
+            border: 4px solid var(--gray-200);
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* 刷新按钮 */
+        .refresh-btn {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            background: var(--primary);
+            color: white;
+            border: none;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+            font-size: 1.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+
+        .refresh-btn:hover {
+            background: var(--primary-dark);
+            transform: scale(1.1);
+        }
+
+        .refresh-btn:active {
+            transform: scale(0.95);
+        }
+
+        /* AI 准确率指示器 */
+        .accuracy-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 0.875rem;
+        }
+
+        .accuracy-indicator.high {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .accuracy-indicator.medium {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .accuracy-indicator.low {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        /* 批次标签 */
+        .batch-tag {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            background: var(--gray-100);
+            border-radius: 4px;
+            font-size: 0.85rem;
+            color: var(--gray-700);
+            font-family: monospace;
+        }
+
+        /* 响应式 */
+        @media (max-width: 768px) {
+            .header { padding: 1rem; }
+            .container { padding: 1rem; }
+            .charts-grid { grid-template-columns: 1fr; }
+            .stats-grid { grid-template-columns: repeat(2, 1fr); }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="header-content">
+            <h1>🎯 AnnSight 数据管理平台</h1>
+            <nav class="nav-tabs">
+                <a href="/" class="nav-tab">数据审核</a>
+                <a href="/raw-data.html" class="nav-tab">源数据管理</a>
+                <a href="/spotcheck.html" class="nav-tab">人工抽检</a>
+                <a href="/stats.html" class="nav-tab active">统计看板</a>
+            </nav>
+        </div>
+    </header>
+
+    <main class="container">
+        <div class="page-header">
+            <h2>📊 数据全流程统计</h2>
+            <p>实时监控数据处理流水线状态 • 最后更新：<span id="last-update">--</span></p>
+        </div>
+
+        <!-- 用途筛选 -->
+        <div style="background: white; padding: 1rem; border-radius: 8px; margin-bottom: 1rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+            <label style="font-weight: 600; margin-right: 1rem;">📌 按用途筛选：</label>
+            <label style="display: inline-flex; align-items: center; gap: 0.5rem; margin-right: 1rem; cursor: pointer;">
+                <input type="checkbox" name="stats-purpose" value="rag" checked style="width: auto;">
+                <span>📚 RAG 素材</span>
+            </label>
+            <label style="display: inline-flex; align-items: center; gap: 0.5rem; margin-right: 1rem; cursor: pointer;">
+                <input type="checkbox" name="stats-purpose" value="finetuning" checked style="width: auto;">
+                <span>🤖 微调数据</span>
+            </label>
+            <label style="display: inline-flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                <input type="checkbox" name="stats-purpose" value="content_creation" checked style="width: auto;">
+                <span>✍️ 内容创作</span>
+            </label>
+        </div>
+
+        <!-- 核心统计 -->
+        <div class="stats-grid">
+            <div class="stat-card total">
+                <div class="value" id="stat-total">-</div>
+                <div class="label">加工数据总数</div>
+            </div>
+            <div class="stat-card pending">
+                <div class="value" id="stat-pending">-</div>
+                <div class="label">待审核</div>
+            </div>
+            <div class="stat-card approved">
+                <div class="value" id="stat-approved">-</div>
+                <div class="label">已通过</div>
+            </div>
+            <div class="stat-card rejected">
+                <div class="value" id="stat-rejected">-</div>
+                <div class="label">已拒绝</div>
+            </div>
+        </div>
+
+        <!-- AI 准确率 -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="value" id="stat-ai-accuracy">-</div>
+                <div class="label">
+                    AI 准确率
+                    <span id="ai-accuracy-badge"></span>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="value" id="stat-avg-confidence">-</div>
+                <div class="label">平均置信度</div>
+            </div>
+            <div class="stat-card">
+                <div class="value" id="stat-auto-approved">-</div>
+                <div class="label">AI 自动通过</div>
+            </div>
+            <div class="stat-card">
+                <div class="value" id="stat-ready-for-rag">-</div>
+                <div class="label">可同步 Dify</div>
+            </div>
+        </div>
+
+        <!-- 图表区域 -->
+        <div class="charts-grid">
+            <!-- 数据类型分布 -->
+            <div class="chart-card">
+                <h3>📁 数据类型分布</h3>
+                <ul class="stat-list" id="type-distribution">
+                    <li class="loading"><div class="loading-spinner"></div></li>
+                </ul>
+            </div>
+
+            <!-- 分类分布 -->
+            <div class="chart-card">
+                <h3>🏷️ 数据分类分布</h3>
+                <ul class="stat-list" id="category-distribution">
+                    <li class="loading"><div class="loading-spinner"></div></li>
+                </ul>
+            </div>
+
+            <!-- 批次统计 -->
+            <div class="chart-card">
+                <h3>📦 批次处理统计</h3>
+                <ul class="stat-list" id="batch-stats">
+                    <li class="loading"><div class="loading-spinner"></div></li>
+                </ul>
+            </div>
+
+            <!-- 源数据统计 -->
+            <div class="chart-card">
+                <h3>📥 源数据统计</h3>
+                <ul class="stat-list" id="source-stats">
+                    <li class="loading"><div class="loading-spinner"></div></li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- 审核进度 -->
+        <div class="chart-card" style="margin-bottom: 1.5rem;">
+            <h3>📈 审核进度</h3>
+            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem; margin-top: 1rem;">
+                <div>
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                        <span>待审核</span>
+                        <span id="pending-percent">0%</span>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill warning" id="pending-progress" style="width: 0%"></div>
+                    </div>
+                </div>
+                <div>
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                        <span>已通过</span>
+                        <span id="approved-percent">0%</span>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill success" id="approved-progress" style="width: 0%"></div>
+                    </div>
+                </div>
+                <div>
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                        <span>已拒绝</span>
+                        <span id="rejected-percent">0%</span>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill danger" id="rejected-progress" style="width: 0%"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <button class="refresh-btn" onclick="loadAllStats()" title="刷新数据">🔄</button>
+
+    <script>
+        const API_BASE = '';
+
+        // 获取选中的用途列表
+        function getSelectedPurposes() {
+            const checkboxes = document.querySelectorAll('input[name="stats-purpose"]:checked');
+            return Array.from(checkboxes).map(cb => cb.value);
+        }
+
+        // 颜色映射
+        const typeColors = {
+            '教训案例': '#667eea',
+            '技巧方法': '#10b981',
+            '理论知识': '#f59e0b',
+            '工具资源': '#ef4444',
+            '场景对话': '#8b5cf6',
+            '评估测试': '#ec4899'
+        };
+
+        const categoryColors = {
+            '职场': '#667eea',
+            '社交': '#10b981',
+            '情感': '#f59e0b',
+            '家庭': '#ef4444',
+            '自我成长': '#8b5cf6'
+        };
+
+        // 加载加工数据统计
+        async function loadProcessedStats(purposes = '') {
+            try {
+                const url = purposes
+                    ? `${API_BASE}/api/review/stats/summary?purposes=${purposes}`
+                    : `${API_BASE}/api/review/stats/summary`;
+                const res = await fetch(url);
+                const stats = await res.json();
+
+                document.getElementById('stat-pending').textContent = stats.pending;
+                document.getElementById('stat-approved').textContent = stats.approved;
+                document.getElementById('stat-rejected').textContent = stats.rejected;
+                document.getElementById('stat-total').textContent = stats.pending + stats.approved + stats.rejected;
+                document.getElementById('stat-avg-confidence').textContent = (stats.accuracy || 0) + '%';
+
+                // 更新进度条
+                const total = stats.pending + stats.approved + stats.rejected;
+                if (total > 0) {
+                    const pendingPct = Math.round((stats.pending / total) * 100);
+                    const approvedPct = Math.round((stats.approved / total) * 100);
+                    const rejectedPct = Math.round((stats.rejected / total) * 100);
+
+                    document.getElementById('pending-percent').textContent = pendingPct + '%';
+                    document.getElementById('approved-percent').textContent = approvedPct + '%';
+                    document.getElementById('rejected-percent').textContent = rejectedPct + '%';
+
+                    document.getElementById('pending-progress').style.width = pendingPct + '%';
+                    document.getElementById('approved-progress').style.width = approvedPct + '%';
+                    document.getElementById('rejected-progress').style.width = rejectedPct + '%';
+                }
+            } catch (error) {
+                console.error('Failed to load processed stats:', error);
+            }
+        }
+
+        // 加载 AI 准确率
+        async function loadAiAccuracy() {
+            try {
+                const res = await fetch(`${API_BASE}/api/review/stats/ai-accuracy`);
+                const stats = await res.json();
+
+                const accuracy = (stats.accuracy * 100).toFixed(1) + '%';
+                document.getElementById('stat-ai-accuracy').textContent = accuracy;
+                document.getElementById('stat-auto-approved').textContent = stats.total_spot_checks;
+
+                // 准确率徽章
+                const badge = document.getElementById('ai-accuracy-badge');
+                const accuracyNum = parseFloat(stats.accuracy * 100);
+                if (accuracyNum >= 90) {
+                    badge.className = 'accuracy-indicator high';
+                    badge.textContent = '优秀';
+                } else if (accuracyNum >= 75) {
+                    badge.className = 'accuracy-indicator medium';
+                    badge.textContent = '良好';
+                } else {
+                    badge.className = 'accuracy-indicator low';
+                    badge.textContent = '需改进';
+                }
+            } catch (error) {
+                console.error('Failed to load AI accuracy:', error);
+                document.getElementById('stat-ai-accuracy').textContent = 'N/A';
+            }
+        }
+
+        // 加载可同步 Dify 数据
+        async function loadReadyForRag() {
+            try {
+                const res = await fetch(`${API_BASE}/api/review/processed/ready-for-rag`);
+                const result = await res.json();
+                document.getElementById('stat-ready-for-rag').textContent = result.count || 0;
+            } catch (error) {
+                console.error('Failed to load ready for rag:', error);
+            }
+        }
+
+        // 加载类型分布
+        async function loadTypeDistribution(purposes = '') {
+            try {
+                const url = purposes
+                    ? `${API_BASE}/api/review/stats/distribution?type=type&purposes=${purposes}`
+                    : `${API_BASE}/api/review/stats/distribution?type=type`;
+                const res = await fetch(url);
+                const data = await res.json();
+
+                const container = document.getElementById('type-distribution');
+                if (!data || data.length === 0) {
+                    container.innerHTML = '<li class="stat-list-item"><span class="stat-list-label">暂无数据</span></li>';
+                    return;
+                }
+
+                const total = data.reduce((sum, item) => sum + parseInt(item.count), 0);
+
+                container.innerHTML = data.map(item => {
+                    const count = parseInt(item.count);
+                    const percent = total > 0 ? Math.round((count / total) * 100) : 0;
+                    const color = typeColors[item.type] || '#667eea';
+
+                    return `
+                        <li class="stat-list-item">
+                            <div class="stat-list-label">
+                                <div class="stat-list-color" style="background: ${color}"></div>
+                                <span>${item.type}</span>
+                            </div>
+                            <div>
+                                <span class="stat-list-value">${count}</span>
+                                <span class="stat-list-percent">(${percent}%)</span>
+                            </div>
+                        </li>
+                    `;
+                }).join('');
+            } catch (error) {
+                console.error('Failed to load type distribution:', error);
+            }
+        }
+
+        // 加载分类分布
+        async function loadCategoryDistribution(purposes = '') {
+            try {
+                const url = purposes
+                    ? `${API_BASE}/api/review/stats/distribution?type=category&purposes=${purposes}`
+                    : `${API_BASE}/api/review/stats/distribution?type=category`;
+                const res = await fetch(url);
+                const data = await res.json();
+
+                const container = document.getElementById('category-distribution');
+                if (!data || data.length === 0) {
+                    container.innerHTML = '<li class="stat-list-item"><span class="stat-list-label">暂无数据</span></li>';
+                    return;
+                }
+
+                const total = data.reduce((sum, item) => sum + parseInt(item.count), 0);
+
+                container.innerHTML = data.map(item => {
+                    const count = parseInt(item.count);
+                    const percent = total > 0 ? Math.round((count / total) * 100) : 0;
+                    const color = categoryColors[item.category] || '#667eea';
+
+                    return `
+                        <li class="stat-list-item">
+                            <div class="stat-list-label">
+                                <div class="stat-list-color" style="background: ${color}"></div>
+                                <span>${item.category}</span>
+                            </div>
+                            <div>
+                                <span class="stat-list-value">${count}</span>
+                                <span class="stat-list-percent">(${percent}%)</span>
+                            </div>
+                        </li>
+                    `;
+                }).join('');
+            } catch (error) {
+                console.error('Failed to load category distribution:', error);
+            }
+        }
+
+        // 加载批次统计
+        async function loadBatchStats() {
+            try {
+                const res = await fetch(`${API_BASE}/api/raw-data/stats`);
+                const stats = await res.json();
+
+                const container = document.getElementById('batch-stats');
+
+                if (!stats.batches || stats.batches.length === 0) {
+                    container.innerHTML = '<li class="stat-list-item"><span class="stat-list-label">暂无批次数据</span></li>';
+                    return;
+                }
+
+                container.innerHTML = stats.batches.slice(0, 10).map(batch => `
+                    <li class="stat-list-item">
+                        <div class="stat-list-label">
+                            <span class="batch-tag">${batch.batch_id}</span>
+                        </div>
+                        <div>
+                            <span class="stat-list-value">${batch.count}</span>
+                            <span class="stat-list-percent">条</span>
+                        </div>
+                    </li>
+                `).join('');
+            } catch (error) {
+                console.error('Failed to load batch stats:', error);
+            }
+        }
+
+        // 加载源数据统计
+        async function loadSourceStats() {
+            try {
+                const res = await fetch(`${API_BASE}/api/raw-data/stats`);
+                const stats = await res.json();
+
+                const container = document.getElementById('source-stats');
+                container.innerHTML = `
+                    <li class="stat-list-item">
+                        <div class="stat-list-label">
+                            <span>源数据总数</span>
+                        </div>
+                        <div>
+                            <span class="stat-list-value">${stats.total || 0}</span>
+                        </div>
+                    </li>
+                    <li class="stat-list-item">
+                        <div class="stat-list-label">
+                            <span>待处理</span>
+                        </div>
+                        <div>
+                            <span class="stat-list-value">${stats.pending || 0}</span>
+                        </div>
+                    </li>
+                    <li class="stat-list-item">
+                        <div class="stat-list-label">
+                            <span>已处理</span>
+                        </div>
+                        <div>
+                            <span class="stat-list-value">${stats.processed || 0}</span>
+                        </div>
+                    </li>
+                    <li class="stat-list-item">
+                        <div class="stat-list-label">
+                            <span>批次数</span>
+                        </div>
+                        <div>
+                            <span class="stat-list-value">${stats.batches?.length || 0}</span>
+                        </div>
+                    </li>
+                `;
+            } catch (error) {
+                console.error('Failed to load source stats:', error);
+            }
+        }
+
+        // 加载所有统计
+        async function loadAllStats() {
+            const purposes = getSelectedPurposes();
+            const purposeParam = purposes.length > 0 ? purposes.join(',') : '';
+
+            await Promise.all([
+                loadProcessedStats(purposeParam),
+                loadAiAccuracy(),
+                loadReadyForRag(),
+                loadTypeDistribution(purposeParam),
+                loadCategoryDistribution(purposeParam),
+                loadBatchStats(),
+                loadSourceStats()
+            ]);
+
+            document.getElementById('last-update').textContent = new Date().toLocaleTimeString('zh-CN');
+        }
+
+        // 用途筛选改变时重新加载
+        document.querySelectorAll('input[name="stats-purpose"]').forEach(cb => {
+            cb.addEventListener('change', loadAllStats);
+        });
+
+        // 页面加载时获取数据
+        loadAllStats();
+
+        // 每 30 秒自动刷新
+        setInterval(loadAllStats, 30000);
+    </script>
+</body>
+</html>

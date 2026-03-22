@@ -1,0 +1,92 @@
+
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>JSON Upload UAT Report</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 900px; margin: 2rem auto; padding: 1rem; background: #f5f5f5; }
+        .card { background: white; border-radius: 8px; padding: 1.5rem; margin-bottom: 1rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        h1 { color: #111827; }
+        .status { display: inline-block; padding: 0.5rem 1rem; border-radius: 6px; font-weight: 600; }
+        .status.pass { background: #d1fae5; color: #065f46; }
+        .status.warn { background: #fef3c7; color: #92400e; }
+        .status.fail { background: #fee2e2; color: #991b1b; }
+        .result-item { padding: 0.75rem; border-bottom: 1px solid #e5e7eb; }
+        .result-item:last-child { border-bottom: none; }
+        .label { font-weight: 600; color: #6b7280; }
+        .value { color: #111827; }
+        .screenshots { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; }
+        .screenshot { border-radius: 6px; overflow: hidden; border: 1px solid #e5e7eb; }
+        .screenshot img { width: 100%; height: auto; display: block; }
+        .screenshot-caption { padding: 0.5rem; background: #f9fafb; font-size: 0.875rem; text-align: center; }
+    </style>
+</head>
+<body>
+    <h1>📊 JSON File Upload UAT Report</h1>
+
+    <div class="card">
+        <h2>Test Summary</h2>
+        <div class="result-item">
+            <span class="label">Status: </span>
+            <span class="status pass">
+                PASSED
+            </span>
+        </div>
+        <div class="result-item">
+            <span class="label">Page Title: </span>
+            <span class="value">AnnSight - 源数据管理</span>
+        </div>
+        <div class="result-item">
+            <span class="label">Toast Message: </span>
+            <span class="value">上传完成：成功 5 / 5</span>
+        </div>
+        <div class="result-item">
+            <span class="label">Success Count: </span>
+            <span class="value">5 / 5</span>
+        </div>
+        <div class="result-item">
+            <span class="label">Data Visible in Table: </span>
+            <span class="value">Yes</span>
+        </div>
+        <div class="result-item">
+            <span class="label">Test Time: </span>
+            <span class="value">2026/3/21 21:37:53</span>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>Screenshots</h2>
+        <div class="screenshots">
+            <div class="screenshot">
+                <img src="01-page-loaded.png" alt="Page Loaded">
+                <div class="screenshot-caption">1. Page Loaded</div>
+            </div>
+            <div class="screenshot">
+                <img src="02-upload-modal.png" alt="Upload Modal">
+                <div class="screenshot-caption">2. Upload Modal</div>
+            </div>
+            <div class="screenshot">
+                <img src="03-file-upload-tab.png" alt="File Upload Tab">
+                <div class="screenshot-caption">3. File Upload Tab</div>
+            </div>
+            <div class="screenshot">
+                <img src="04-file-selected.png" alt="File Selected">
+                <div class="screenshot-caption">4. File Selected</div>
+            </div>
+            <div class="screenshot">
+                <img src="05-after-upload.png" alt="After Upload">
+                <div class="screenshot-caption">5. After Upload</div>
+            </div>
+            <div class="screenshot">
+                <img src="06-after-refresh.png" alt="After Refresh">
+                <div class="screenshot-caption">6. After Refresh</div>
+            </div>
+            <div class="screenshot">
+                <img src="07-final-result.png" alt="Final Result">
+                <div class="screenshot-caption">7. Final Result</div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

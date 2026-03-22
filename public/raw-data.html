@@ -1,0 +1,1686 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AnnSight - 源数据管理</title>
+    <style>
+        :root {
+            --primary: #667eea;
+            --primary-dark: #5a67d8;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --gray-50: #f9fafb;
+            --gray-100: #f3f4f6;
+            --gray-200: #e5e7eb;
+            --gray-300: #d1d5db;
+            --gray-600: #4b5563;
+            --gray-700: #374151;
+            --gray-900: #111827;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--gray-100);
+            color: var(--gray-700);
+            line-height: 1.6;
+        }
+
+        /* 顶部导航 */
+        .header {
+            background: linear-gradient(135deg, var(--primary) 0%, #764ba2 100%);
+            color: white;
+            padding: 1rem 2rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .header-content {
+            max-width: 1600px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header h1 { font-size: 1.5rem; font-weight: 700; }
+
+        .nav-tabs { display: flex; gap: 0.5rem; }
+
+        .nav-tab {
+            padding: 0.5rem 1rem;
+            border: none;
+            background: rgba(255,255,255,0.1);
+            color: white;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+            text-decoration: none;
+        }
+
+        .nav-tab:hover { background: rgba(255,255,255,0.2); }
+        .nav-tab.active { background: white; color: var(--primary); }
+
+        /* 主容器 */
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 1.5rem;
+        }
+
+        /* 统计卡片 */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 1.25rem;
+            border-radius: 10px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        .stat-card .value {
+            font-size: 1.75rem;
+            font-weight: 700;
+            color: var(--gray-900);
+        }
+
+        .stat-card .label {
+            font-size: 0.875rem;
+            color: var(--gray-600);
+            margin-top: 0.25rem;
+        }
+
+        .stat-card.highlight {
+            background: linear-gradient(135deg, var(--primary) 0%, #764ba2 100%);
+        }
+
+        .stat-card.highlight .value,
+        .stat-card.highlight .label { color: white; }
+
+        /* 内容区 */
+        .content-card {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .content-card-header {
+            padding: 1rem 1.25rem;
+            border-bottom: 1px solid var(--gray-200);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        .content-card-header h2 {
+            font-size: 1.125rem;
+            font-weight: 600;
+            color: var(--gray-900);
+        }
+
+        .filters {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+
+        .filter-input {
+            padding: 0.5rem 0.75rem;
+            border: 1px solid var(--gray-300);
+            border-radius: 6px;
+            font-size: 0.875rem;
+            min-width: 120px;
+        }
+
+        .btn {
+            padding: 0.625rem 1rem;
+            border: none;
+            border-radius: 6px;
+            font-weight: 600;
+            font-size: 0.875rem;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+        }
+        .btn-primary:hover { background: var(--primary-dark); }
+
+        .btn-success {
+            background: var(--success);
+            color: white;
+        }
+        .btn-success:hover { background: #059669; }
+
+        .btn-danger {
+            background: var(--danger);
+            color: white;
+        }
+        .btn-danger:hover { background: #dc2626; }
+
+        .btn-secondary {
+            background: var(--gray-200);
+            color: var(--gray-700);
+        }
+        .btn-secondary:hover { background: var(--gray-300); }
+
+        /* 表格 */
+        .table-container { overflow-x: auto; }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th, td {
+            padding: 0.875rem 1rem;
+            text-align: left;
+            border-bottom: 1px solid var(--gray-200);
+        }
+
+        th {
+            background: var(--gray-50);
+            font-weight: 600;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--gray-600);
+            white-space: nowrap;
+        }
+
+        tr:hover { background: var(--gray-50); }
+
+        /* 状态徽章 */
+        .badge {
+            padding: 0.25rem 0.625rem;
+            border-radius: 12px;
+            font-weight: 500;
+            font-size: 0.75rem;
+            display: inline-block;
+        }
+
+        .badge-pending { background: #fef3c7; color: #92400e; }
+        .badge-processed { background: #d1fae5; color: #065f46; }
+        .badge-duplicate { background: #e5e7eb; color: #374151; }
+        .badge-approved { background: #dbeafe; color: #1e40af; }
+        .badge-rejected { background: #fee2e2; color: #991b1b; }
+
+        /* 操作按钮组 */
+        .actions {
+            display: flex;
+            gap: 0.375rem;
+        }
+
+        .btn-xs {
+            padding: 0.25rem 0.5rem;
+            font-size: 0.75rem;
+            border-radius: 4px;
+        }
+
+        /* 分页 */
+        .pagination {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem 1.25rem;
+            border-top: 1px solid var(--gray-200);
+        }
+
+        .pagination-info {
+            font-size: 0.875rem;
+            color: var(--gray-600);
+        }
+
+        .pagination-buttons {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        /* 模态框 */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.5);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .modal-overlay.active { display: flex; }
+
+        .modal {
+            background: white;
+            border-radius: 10px;
+            padding: 1.5rem;
+            max-width: 700px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .modal h3 {
+            font-size: 1.125rem;
+            margin-bottom: 1rem;
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 0.5rem;
+            margin-top: 1.5rem;
+            justify-content: flex-end;
+        }
+
+        /* 表单 */
+        .form-group {
+            margin-bottom: 1rem;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: var(--gray-700);
+            margin-bottom: 0.375rem;
+        }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 0.625rem;
+            border: 1px solid var(--gray-300);
+            border-radius: 6px;
+            font-size: 0.9rem;
+            font-family: inherit;
+        }
+
+        .form-group textarea {
+            min-height: 150px;
+            resize: vertical;
+            font-family: monospace;
+        }
+
+        .form-group small {
+            display: block;
+            margin-top: 0.25rem;
+            color: var(--gray-500);
+            font-size: 0.8rem;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+
+        /* Toast */
+        .toast {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            padding: 1rem 1.5rem;
+            background: var(--gray-900);
+            color: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            transform: translateY(100px);
+            opacity: 0;
+            transition: all 0.3s;
+            z-index: 1000;
+        }
+
+        .toast.show {
+            transform: translateY(0);
+            opacity: 1;
+        }
+
+        .toast.success { background: var(--success); }
+        .toast.error { background: var(--danger); }
+
+        /* 详情面板 */
+        .detail-grid {
+            display: grid;
+            gap: 1rem;
+        }
+
+        .detail-item {
+            padding: 0.75rem;
+            background: var(--gray-50);
+            border-radius: 6px;
+        }
+
+        .detail-item label {
+            font-size: 0.75rem;
+            color: var(--gray-600);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            display: block;
+            margin-bottom: 0.25rem;
+        }
+
+        .detail-item .value {
+            font-size: 0.9rem;
+            color: var(--gray-900);
+            word-break: break-word;
+        }
+
+        .processed-data-list {
+            margin-top: 1rem;
+            border-top: 1px solid var(--gray-200);
+            padding-top: 1rem;
+        }
+
+        .processed-data-item {
+            padding: 0.75rem;
+            background: var(--gray-50);
+            border-radius: 6px;
+            margin-bottom: 0.5rem;
+        }
+    </style>
+</head>
+<body>
+    <!-- 顶部导航 -->
+    <header class="header">
+        <div class="header-content">
+            <h1>🎯 AnnSight 数据管理平台</h1>
+            <nav class="nav-tabs">
+                <a href="/" class="nav-tab">数据审核</a>
+                <a href="/raw-data.html" class="nav-tab active">源数据管理</a>
+                <a href="/stats.html" class="nav-tab">统计看板</a>
+            </nav>
+        </div>
+    </header>
+
+    <!-- 主容器 -->
+    <div class="container">
+        <!-- 统计卡片 -->
+        <div class="stats-grid">
+            <div class="stat-card highlight">
+                <div class="value" id="stat-total">-</div>
+                <div class="label">源数据总数</div>
+            </div>
+            <div class="stat-card">
+                <div class="value" id="stat-pending">-</div>
+                <div class="label">待处理</div>
+            </div>
+            <div class="stat-card">
+                <div class="value" id="stat-processed">-</div>
+                <div class="label">已处理</div>
+            </div>
+            <div class="stat-card">
+                <div class="value" id="stat-duplicate">-</div>
+                <div class="label">已去重</div>
+            </div>
+            <div class="stat-card">
+                <div class="value" id="stat-batches">-</div>
+                <div class="label">批次数</div>
+            </div>
+        </div>
+
+        <!-- 内容区 -->
+        <div class="content-card">
+            <div class="content-card-header">
+                <h2>📂 源数据列表</h2>
+                <div style="display: flex; gap: 0.5rem;">
+                    <button class="btn btn-primary" onclick="showUploadModal()">➕ 批量上传</button>
+                    <button class="btn btn-secondary" onclick="exportData()">📥 导出</button>
+                </div>
+            </div>
+
+            <!-- 筛选器 -->
+            <div style="padding: 1rem 1.25rem; border-bottom: 1px solid var(--gray-200); background: var(--gray-50);">
+                <div class="filters">
+                    <select class="filter-input" id="filter-source" onchange="applyFilters()">
+                        <option value="">全部来源</option>
+                        <option value="zhihu">知乎</option>
+                        <option value="xiaohongshu">小红书</option>
+                        <option value="interview">访谈</option>
+                        <option value="submission">用户投稿</option>
+                        <option value="test">测试数据</option>
+                    </select>
+                    <select class="filter-input" id="filter-status" onchange="applyFilters()">
+                        <option value="">全部状态</option>
+                        <option value="pending">待处理</option>
+                        <option value="processed">已处理</option>
+                        <option value="duplicate">重复</option>
+                    </select>
+                    <input type="text" class="filter-input" id="filter-batch" placeholder="批次 ID" onchange="applyFilters()">
+                    <input type="date" class="filter-input" id="filter-start-date" onchange="applyFilters()">
+                    <input type="date" class="filter-input" id="filter-end-date" onchange="applyFilters()">
+                    <button class="btn btn-secondary" onclick="resetFilters()">重置</button>
+                </div>
+            </div>
+
+            <!-- 表格 -->
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>来源</th>
+                            <th>批次</th>
+                            <th>类型</th>
+                            <th>状态</th>
+                            <th>MD5</th>
+                            <th>创建时间</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="table-body">
+                        <tr><td colspan="8" style="text-align: center; padding: 3rem;">加载中...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- 分页 -->
+            <div class="pagination">
+                <div class="pagination-info" id="pagination-info">共 0 条</div>
+                <div class="pagination-buttons">
+                    <button class="btn btn-secondary" onclick="prevPage()" id="btn-prev">上一页</button>
+                    <button class="btn btn-secondary" onclick="nextPage()" id="btn-next">下一页</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 上传模态框 -->
+    <div class="modal-overlay" id="upload-modal">
+        <div class="modal">
+            <h3>📤 批量上传源数据</h3>
+
+            <!-- 上传方式选择 -->
+            <div style="margin-bottom: 1.5rem;">
+                <button class="btn btn-primary" id="tab-text" onclick="switchUploadTab('text')" style="margin-right: 0.5rem;">📝 文本输入</button>
+                <button class="btn btn-secondary" id="tab-url" onclick="switchUploadTab('url')" style="margin-right: 0.5rem;">🔗 链接上传</button>
+                <button class="btn btn-secondary" id="tab-file" onclick="switchUploadTab('file')">📁 文件上传</button>
+            </div>
+
+            <!-- 文本输入方式 -->
+            <div id="upload-tab-text">
+                <div class="form-group">
+                    <label>数据来源</label>
+                    <select id="upload-source">
+                        <option value="test">测试数据</option>
+                        <option value="zhihu">知乎</option>
+                        <option value="xiaohongshu">小红书</option>
+                        <option value="interview">访谈</option>
+                        <option value="submission">用户投稿</option>
+                    </select>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>批次 ID</label>
+                        <input type="text" id="upload-batch-id" placeholder="batch-001">
+                        <small>用于标识一批数据的唯一 ID</small>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>裂变方向（多选）</label>
+                    <div style="display: flex; gap: 1rem; flex-wrap: wrap; margin-top: 0.5rem;">
+                        <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                            <input type="checkbox" name="fission-purpose" value="rag" checked style="width: auto;">
+                            <span>📚 RAG 素材</span>
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                            <input type="checkbox" name="fission-purpose" value="finetuning" checked style="width: auto;">
+                            <span>🤖 微调数据</span>
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                            <input type="checkbox" name="fission-purpose" value="content_creation" style="width: auto;">
+                            <span>✍️ 内容创作</span>
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                            <input type="checkbox" name="fission-purpose" value="other" style="width: auto;">
+                            <span>📌 其他</span>
+                        </label>
+                    </div>
+                    <small style="display: block; margin-top: 0.5rem;">选择数据的用途方向，支持多选</small>
+                </div>
+                <div class="form-group">
+                    <label style="display: flex; align-items: center; gap: 0.5rem;">
+                        <input type="checkbox" id="fission-enable" style="width: auto;">
+                        <span style="font-weight: 600;">🔮 启用裂变</span>
+                    </label>
+                    <small style="display: block; margin-top: 0.5rem; color: var(--gray-600);">
+                        启用后可针对每种用途设置期望数量和具体要求
+                    </small>
+                    <!-- 裂变配置面板（默认隐藏） -->
+                    <div id="fission-config" style="display: none; margin-top: 1rem; padding: 1rem; background: var(--gray-50); border-radius: 8px; border: 1px solid var(--gray-200);">
+                        <p style="font-size: 0.875rem; color: var(--gray-600); margin-bottom: 1rem;">
+                            为每种用途设置期望生成数量和具体要求（将作为提示词给到 LLM）
+                        </p>
+                        <!-- RAG 配置 -->
+                        <div class="fission-item" data-purpose="rag" style="margin-bottom: 1rem; padding: 0.75rem; background: white; border-radius: 6px; border-left: 3px solid var(--primary);">
+                            <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
+                                <span style="font-weight: 600;">📚 RAG 素材</span>
+                                <span style="font-size: 0.75rem; color: var(--gray-500);">知识库文档</span>
+                            </div>
+                            <div style="display: grid; grid-template-columns: 100px 1fr; gap: 0.5rem; align-items: center;">
+                                <label style="font-size: 0.875rem;">期望数量：</label>
+                                <input type="number" name="fission-count-rag" min="0" max="20" value="3"
+                                    style="width: 80px; padding: 0.25rem 0.5rem; border: 1px solid var(--gray-300); border-radius: 4px;">
+                                <label style="font-size: 0.875rem; grid-column: 1;">要求说明：</label>
+                                <textarea name="fission-requirement-rag" rows="2"
+                                    placeholder="例如：提取独立的知识点，每条 200-500 字，适合 RAG 检索..."
+                                    style="grid-column: 2; width: 100%; padding: 0.5rem; border: 1px solid var(--gray-300); border-radius: 4px; font-size: 0.875rem;"></textarea>
+                            </div>
+                        </div>
+                        <!-- 微调配置 -->
+                        <div class="fission-item" data-purpose="finetuning" style="margin-bottom: 1rem; padding: 0.75rem; background: white; border-radius: 6px; border-left: 3px solid var(--success);">
+                            <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
+                                <span style="font-weight: 600;">🤖 微调数据</span>
+                                <span style="font-size: 0.75rem; color: var(--gray-500);">SFT 训练样本</span>
+                            </div>
+                            <div style="display: grid; grid-template-columns: 100px 1fr; gap: 0.5rem; align-items: center;">
+                                <label style="font-size: 0.875rem;">期望数量：</label>
+                                <input type="number" name="fission-count-finetuning" min="0" max="20" value="2"
+                                    style="width: 80px; padding: 0.25rem 0.5rem; border: 1px solid var(--gray-300); border-radius: 4px;">
+                                <label style="font-size: 0.875rem; grid-column: 1;">要求说明：</label>
+                                <textarea name="fission-requirement-finetuning" rows="2"
+                                    placeholder="例如：生成多轮对话，2-4 轮，场景真实自然..."
+                                    style="grid-column: 2; width: 100%; padding: 0.5rem; border: 1px solid var(--gray-300); border-radius: 4px; font-size: 0.875rem;"></textarea>
+                            </div>
+                        </div>
+                        <!-- 内容创作配置 -->
+                        <div class="fission-item" data-purpose="content_creation" style="margin-bottom: 1rem; padding: 0.75rem; background: white; border-radius: 6px; border-left: 3px solid var(--warning);">
+                            <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
+                                <span style="font-weight: 600;">✍️ 内容创作</span>
+                                <span style="font-size: 0.75rem; color: var(--gray-500);">创作素材</span>
+                            </div>
+                            <div style="display: grid; grid-template-columns: 100px 1fr; gap: 0.5rem; align-items: center;">
+                                <label style="font-size: 0.875rem;">期望数量：</label>
+                                <input type="number" name="fission-count-content_creation" min="0" max="20" value="2"
+                                    style="width: 80px; padding: 0.25rem 0.5rem; border: 1px solid var(--gray-300); border-radius: 4px;">
+                                <label style="font-size: 0.875rem; grid-column: 1;">要求说明：</label>
+                                <textarea name="fission-requirement-content_creation" rows="2"
+                                    placeholder="例如：提取金句、案例素材、选题方向..."
+                                    style="grid-column: 2; width: 100%; padding: 0.5rem; border: 1px solid var(--gray-300); border-radius: 4px; font-size: 0.875rem;"></textarea>
+                            </div>
+                        </div>
+                        <!-- 其他配置 -->
+                        <div class="fission-item" data-purpose="other" style="margin-bottom: 0.5rem; padding: 0.75rem; background: white; border-radius: 6px; border-left: 3px solid var(--gray-600);">
+                            <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
+                                <span style="font-weight: 600;">📌 其他</span>
+                                <span style="font-size: 0.75rem; color: var(--gray-500);">自定义用途</span>
+                            </div>
+                            <div style="display: grid; grid-template-columns: 100px 1fr; gap: 0.5rem; align-items: center;">
+                                <label style="font-size: 0.875rem;">期望数量：</label>
+                                <input type="number" name="fission-count-other" min="0" max="20" value="1"
+                                    style="width: 80px; padding: 0.25rem 0.5rem; border: 1px solid var(--gray-300); border-radius: 4px;">
+                                <label style="font-size: 0.875rem; grid-column: 1;">要求说明：</label>
+                                <textarea name="fission-requirement-other" rows="2"
+                                    placeholder="例如：评估测试题、场景模拟题..."
+                                    style="grid-column: 2; width: 100%; padding: 0.5rem; border: 1px solid var(--gray-300); border-radius: 4px; font-size: 0.875rem;"></textarea>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>文本内容（每行一条）</label>
+                    <textarea id="upload-texts" placeholder="输入或粘贴文本内容，每行一条数据...&#10;例如：&#10;第一条文本内容&#10;第二条文本内容&#10;第三条文本内容"></textarea>
+                    <small>每条文本将自动进行 MD5 去重检测并进入 ETL 处理流程</small>
+                </div>
+            </div>
+
+            <!-- URL 上传方式 -->
+            <div id="upload-tab-url" style="display: none;">
+                <div class="form-group">
+                    <label>数据来源</label>
+                    <select id="url-upload-source">
+                        <option value="zhihu">知乎</option>
+                        <option value="xiaohongshu">小红书</option>
+                        <option value="bilibili">B 站</option>
+                        <option value="weibo">微博</option>
+                        <option value="generic">通用网页</option>
+                        <option value="interview">访谈</option>
+                        <option value="submission">用户投稿</option>
+                    </select>
+                    <small>选择内容来源平台，通用网页可抓取任意 URL</small>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>批次 ID</label>
+                        <input type="text" id="url-upload-batch-id" placeholder="batch-001">
+                        <small>用于标识一批数据的唯一 ID</small>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>内容链接（支持多个，每行一个）</label>
+                    <textarea id="upload-urls" rows="8" placeholder="https://www.zhihu.com/question/xxx&#10;https://www.xiaohongshu.com/explore/xxx&#10;https://www.bilibili.com/video/xxx&#10;https://example.com/article/xxx"></textarea>
+                    <small>支持知乎、小红书、B 站等平台链接，或直接文件链接（图片/音频/视频）</small>
+                </div>
+                <div class="form-group">
+                    <label>JSON 提取路径配置（可选，仅 JSON 链接）</label>
+                    <input type="text" id="json-path" placeholder="$.data[*].content 或 $..content" />
+                    <small>使用 JSONPath 语法提取内容字段，如不填则自动提取</small>
+                </div>
+                <!-- 裂变配置（复用文本输入的裂变逻辑） -->
+                <div class="form-group">
+                    <label style="display: flex; align-items: center; gap: 0.5rem;">
+                        <input type="checkbox" id="fission-enable-url" style="width: auto;">
+                        <span style="font-weight: 600;">🔮 启用裂变</span>
+                    </label>
+                    <small style="display: block; margin-top: 0.5rem; color: var(--gray-600);">
+                        启用后可针对每种用途设置期望数量和具体要求
+                    </small>
+                    <!-- 裂变配置面板（默认隐藏） -->
+                    <div id="fission-config-url" style="display: none; margin-top: 1rem; padding: 1rem; background: var(--gray-50); border-radius: 8px; border: 1px solid var(--gray-200);">
+                        <!-- 配置内容与文本输入类似，略 -->
+                        <p style="font-size: 0.875rem; color: var(--gray-600); margin-bottom: 1rem;">
+                            为每种用途设置期望生成数量和具体要求
+                        </p>
+                        <div class="fission-item" data-purpose="rag" style="margin-bottom: 1rem; padding: 0.75rem; background: white; border-radius: 6px; border-left: 3px solid var(--primary);">
+                            <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
+                                <span style="font-weight: 600;">📚 RAG 素材</span>
+                            </div>
+                            <div style="display: grid; grid-template-columns: 100px 1fr; gap: 0.5rem; align-items: center;">
+                                <label style="font-size: 0.875rem;">期望数量：</label>
+                                <input type="number" name="fission-count-rag-url" min="0" max="20" value="3"
+                                    style="width: 80px; padding: 0.25rem 0.5rem; border: 1px solid var(--gray-300); border-radius: 4px;">
+                                <label style="font-size: 0.875rem; grid-column: 1;">要求说明：</label>
+                                <textarea name="fission-requirement-rag-url" rows="2"
+                                    placeholder="例如：提取独立的知识点，每条 200-500 字，适合 RAG 检索..."
+                                    style="grid-column: 2; width: 100%; padding: 0.5rem; border: 1px solid var(--gray-300); border-radius: 4px; font-size: 0.875rem;"></textarea>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 文件上传方式 -->
+            <div id="upload-tab-file" style="display: none;">
+                <div class="form-group">
+                    <label>数据来源</label>
+                    <select id="file-upload-source">
+                        <option value="test">测试数据</option>
+                        <option value="zhihu">知乎</option>
+                        <option value="xiaohongshu">小红书</option>
+                        <option value="interview">访谈</option>
+                        <option value="submission">用户投稿</option>
+                    </select>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>批次 ID</label>
+                        <input type="text" id="file-upload-batch-id" placeholder="batch-001">
+                        <small>用于标识一批数据的唯一 ID</small>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>裂变方向（多选）</label>
+                    <div style="display: flex; gap: 1rem; flex-wrap: wrap; margin-top: 0.5rem;">
+                        <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                            <input type="checkbox" name="fission-purpose-file" value="rag" checked style="width: auto;">
+                            <span>📚 RAG 素材</span>
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                            <input type="checkbox" name="fission-purpose-file" value="finetuning" checked style="width: auto;">
+                            <span>🤖 微调数据</span>
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                            <input type="checkbox" name="fission-purpose-file" value="content_creation" style="width: auto;">
+                            <span>✍️ 内容创作</span>
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                            <input type="checkbox" name="fission-purpose-file" value="other" style="width: auto;">
+                            <span>📌 其他</span>
+                        </label>
+                    </div>
+                    <small style="display: block; margin-top: 0.5rem;">选择数据的用途方向，支持多选</small>
+                </div>
+                <div class="form-group">
+                    <label style="display: flex; align-items: center; gap: 0.5rem;">
+                        <input type="checkbox" id="fission-enable-file" style="width: auto;">
+                        <span style="font-weight: 600;">🔮 启用裂变</span>
+                    </label>
+                    <small style="display: block; margin-top: 0.5rem; color: var(--gray-600);">
+                        启用后可针对每种用途设置期望数量和具体要求
+                    </small>
+                    <!-- 裂变配置面板（默认隐藏） -->
+                    <div id="fission-config-file" style="display: none; margin-top: 1rem; padding: 1rem; background: var(--gray-50); border-radius: 8px; border: 1px solid var(--gray-200);">
+                        <p style="font-size: 0.875rem; color: var(--gray-600); margin-bottom: 1rem;">
+                            为每种用途设置期望生成数量和具体要求（将作为提示词给到 LLM）
+                        </p>
+                        <!-- RAG 配置 -->
+                        <div class="fission-item" data-purpose="rag" style="margin-bottom: 1rem; padding: 0.75rem; background: white; border-radius: 6px; border-left: 3px solid var(--primary);">
+                            <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
+                                <span style="font-weight: 600;">📚 RAG 素材</span>
+                                <span style="font-size: 0.75rem; color: var(--gray-500);">知识库文档</span>
+                            </div>
+                            <div style="display: grid; grid-template-columns: 100px 1fr; gap: 0.5rem; align-items: center;">
+                                <label style="font-size: 0.875rem;">期望数量：</label>
+                                <input type="number" name="fission-count-rag-file" min="0" max="20" value="3"
+                                    style="width: 80px; padding: 0.25rem 0.5rem; border: 1px solid var(--gray-300); border-radius: 4px;">
+                                <label style="font-size: 0.875rem; grid-column: 1;">要求说明：</label>
+                                <textarea name="fission-requirement-rag-file" rows="2"
+                                    placeholder="例如：提取独立的知识点，每条 200-500 字，适合 RAG 检索..."
+                                    style="grid-column: 2; width: 100%; padding: 0.5rem; border: 1px solid var(--gray-300); border-radius: 4px; font-size: 0.875rem;"></textarea>
+                            </div>
+                        </div>
+                        <!-- 微调配置 -->
+                        <div class="fission-item" data-purpose="finetuning" style="margin-bottom: 1rem; padding: 0.75rem; background: white; border-radius: 6px; border-left: 3px solid var(--success);">
+                            <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
+                                <span style="font-weight: 600;">🤖 微调数据</span>
+                                <span style="font-size: 0.75rem; color: var(--gray-500);">SFT 训练样本</span>
+                            </div>
+                            <div style="display: grid; grid-template-columns: 100px 1fr; gap: 0.5rem; align-items: center;">
+                                <label style="font-size: 0.875rem;">期望数量：</label>
+                                <input type="number" name="fission-count-finetuning-file" min="0" max="20" value="2"
+                                    style="width: 80px; padding: 0.25rem 0.5rem; border: 1px solid var(--gray-300); border-radius: 4px;">
+                                <label style="font-size: 0.875rem; grid-column: 1;">要求说明：</label>
+                                <textarea name="fission-requirement-finetuning-file" rows="2"
+                                    placeholder="例如：生成多轮对话，2-4 轮，场景真实自然..."
+                                    style="grid-column: 2; width: 100%; padding: 0.5rem; border: 1px solid var(--gray-300); border-radius: 4px; font-size: 0.875rem;"></textarea>
+                            </div>
+                        </div>
+                        <!-- 内容创作配置 -->
+                        <div class="fission-item" data-purpose="content_creation" style="margin-bottom: 1rem; padding: 0.75rem; background: white; border-radius: 6px; border-left: 3px solid var(--warning);">
+                            <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
+                                <span style="font-weight: 600;">✍️ 内容创作</span>
+                                <span style="font-size: 0.75rem; color: var(--gray-500);">创作素材</span>
+                            </div>
+                            <div style="display: grid; grid-template-columns: 100px 1fr; gap: 0.5rem; align-items: center;">
+                                <label style="font-size: 0.875rem;">期望数量：</label>
+                                <input type="number" name="fission-count-content_creation-file" min="0" max="20" value="2"
+                                    style="width: 80px; padding: 0.25rem 0.5rem; border: 1px solid var(--gray-300); border-radius: 4px;">
+                                <label style="font-size: 0.875rem; grid-column: 1;">要求说明：</label>
+                                <textarea name="fission-requirement-content_creation-file" rows="2"
+                                    placeholder="例如：提取金句、案例素材、选题方向..."
+                                    style="grid-column: 2; width: 100%; padding: 0.5rem; border: 1px solid var(--gray-300); border-radius: 4px; font-size: 0.875rem;"></textarea>
+                            </div>
+                        </div>
+                        <!-- 其他配置 -->
+                        <div class="fission-item" data-purpose="other" style="margin-bottom: 0.5rem; padding: 0.75rem; background: white; border-radius: 6px; border-left: 3px solid var(--gray-600);">
+                            <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
+                                <span style="font-weight: 600;">📌 其他</span>
+                                <span style="font-size: 0.75rem; color: var(--gray-500);">自定义用途</span>
+                            </div>
+                            <div style="display: grid; grid-template-columns: 100px 1fr; gap: 0.5rem; align-items: center;">
+                                <label style="font-size: 0.875rem;">期望数量：</label>
+                                <input type="number" name="fission-count-other-file" min="0" max="20" value="1"
+                                    style="width: 80px; padding: 0.25rem 0.5rem; border: 1px solid var(--gray-300); border-radius: 4px;">
+                                <label style="font-size: 0.875rem; grid-column: 1;">要求说明：</label>
+                                <textarea name="fission-requirement-other-file" rows="2"
+                                    placeholder="例如：评估测试题、场景模拟题..."
+                                    style="grid-column: 2; width: 100%; padding: 0.5rem; border: 1px solid var(--gray-300); border-radius: 4px; font-size: 0.875rem;"></textarea>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>上传文件</label>
+                    <div id="drop-zone" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event)" style="border: 2px dashed var(--gray-300); border-radius: 8px; padding: 2rem; text-align: center; cursor: pointer;" onclick="document.getElementById('file-input').click()">
+                        <div style="font-size: 3rem; margin-bottom: 1rem;">📤</div>
+                        <p style="color: var(--gray-600);">点击选择文件或拖拽文件到此处</p>
+                        <p style="font-size: 0.875rem; color: var(--gray-500); margin-top: 0.5rem;">支持格式：TXT, CSV, Excel (.xlsx), JSON</p>
+                    </div>
+                    <input type="file" id="file-input" accept=".txt,.csv,.xlsx,.xls,.json" style="display: none;" onchange="handleFileSelect(event)">
+                    <div id="file-preview" style="margin-top: 1rem; display: none;">
+                        <div style="background: var(--gray-50); padding: 1rem; border-radius: 6px; display: flex; justify-content: space-between; align-items: center;">
+                            <div>
+                                <span id="file-name" style="font-weight: 600;"></span>
+                                <span id="file-count" style="color: var(--gray-600); margin-left: 0.5rem;"></span>
+                            </div>
+                            <button class="btn btn-secondary" onclick="removeFile()" style="padding: 0.25rem 0.75rem; font-size: 0.875rem;">🗑️ 移除</button>
+                        </div>
+                    </div>
+                    <small style="display: block; margin-top: 0.75rem;">TXT/CSV：每行一条数据 | Excel：读取第一列数据 | JSON：数组或{data:[...]}</small>
+                </div>
+            </div>
+
+            <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="closeUploadModal()">取消</button>
+                <button class="btn btn-primary" id="upload-confirm-btn" onclick="confirmUpload()">上传并处理</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 详情模态框 -->
+    <div class="modal-overlay" id="detail-modal">
+        <div class="modal">
+            <h3>📋 源数据详情</h3>
+            <div id="detail-content" class="detail-grid"></div>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="closeDetailModal()">关闭</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast -->
+    <div class="toast" id="toast"></div>
+
+    <script>
+        const API_BASE = '/api/raw-data';
+        let state = {
+            page: 1,
+            pageSize: 20,
+            total: 0,
+            filters: {}
+        };
+
+        // 初始化
+        (async function init() {
+            await loadStats();
+            await loadData();
+        })();
+
+        // 加载统计
+        async function loadStats() {
+            try {
+                const res = await fetch(`${API_BASE}/stats`);
+                const stats = await res.json();
+                document.getElementById('stat-total').textContent = stats.total || 0;
+                document.getElementById('stat-pending').textContent = stats.pending || 0;
+                document.getElementById('stat-processed').textContent = stats.processed || 0;
+                document.getElementById('stat-duplicate').textContent = stats.duplicate || 0;
+                // batches 现在是数组，显示批次数量
+                document.getElementById('stat-batches').textContent = Array.isArray(stats.batches) ? stats.batches.length : (stats.batches || 0);
+            } catch (err) {
+                console.error('加载统计失败:', err);
+            }
+        }
+
+        // 加载数据
+        async function loadData() {
+            const params = new URLSearchParams({
+                page: state.page,
+                pageSize: state.pageSize,
+                ...state.filters
+            });
+
+            try {
+                const res = await fetch(`${API_BASE}/list?${params}`);
+                const { data, pagination } = await res.json();
+                state.total = pagination.total;
+                renderTable(data);
+                updatePagination(pagination);
+            } catch (err) {
+                console.error('加载数据失败:', err);
+                document.getElementById('table-body').innerHTML = `
+                    <tr><td colspan="8" style="text-align: center; padding: 3rem; color: var(--danger);">
+                        加载失败，请刷新页面重试
+                    </td></tr>
+                `;
+            }
+        }
+
+        // 渲染表格
+        function renderTable(data) {
+            const tbody = document.getElementById('table-body');
+
+            if (data.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 3rem;">暂无数据</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = data.map(item => `
+                <tr>
+                    <td style="font-family: monospace; font-size: 0.85rem;">${item.id.slice(-12)}</td>
+                    <td>${getSourceName(item.source)}</td>
+                    <td>${item.batch_id}</td>
+                    <td>${getContentTypeName(item.content_type)}</td>
+                    <td><span class="badge badge-${item.status}">${getStatusName(item.status)}</span></td>
+                    <td style="font-family: monospace; font-size: 0.75rem;">${item.content_md5 ? item.content_md5.slice(0, 16) + '...' : '-'}</td>
+                    <td>${new Date(item.created_at).toLocaleString('zh-CN')}</td>
+                    <td>
+                        <div class="actions">
+                            <button class="btn btn-xs btn-secondary" onclick="viewDetail('${item.id}')">查看</button>
+                            ${item.status === 'pending' ? `
+                                <button class="btn btn-xs btn-success" onclick="quickProcess('${item.id}')">处理</button>
+                            ` : ''}
+                            ${item.status !== 'duplicate' ? `
+                                <button class="btn btn-xs btn-secondary" onclick="markDuplicate('${item.id}')">重复</button>
+                            ` : ''}
+                            <button class="btn btn-xs btn-danger" onclick="deleteItem('${item.id}')" ${item.processed_count > 0 ? 'disabled' : ''}>删除</button>
+                        </div>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        // 查看详情
+        async function viewDetail(id) {
+            try {
+                const res = await fetch(`${API_BASE}/${id}`);
+                const { data, processedData } = await res.json();
+
+                const content = document.getElementById('detail-content');
+                content.innerHTML = `
+                    <div class="detail-item">
+                        <label>完整 ID</label>
+                        <div class="value" style="font-family: monospace;">${data.id}</div>
+                    </div>
+                    <div class="detail-item">
+                        <label>来源</label>
+                        <div class="value">${getSourceName(data.source)} (${data.source})</div>
+                    </div>
+                    <div class="detail-item">
+                        <label>批次 ID</label>
+                        <div class="value">${data.batch_id}</div>
+                    </div>
+                    <div class="detail-item">
+                        <label>内容类型</label>
+                        <div class="value">${data.content_type}</div>
+                    </div>
+                    <div class="detail-item">
+                        <label>状态</label>
+                        <div class="value"><span class="badge badge-${data.status}">${getStatusName(data.status)}</span></div>
+                    </div>
+                    ${data.content_md5 ? `
+                    <div class="detail-item">
+                        <label>MD5</label>
+                        <div class="value" style="font-family: monospace;">${data.content_md5}</div>
+                    </div>
+                    ` : ''}
+                    ${data.oss_url ? `
+                    <div class="detail-item">
+                        <label>OSS URL</label>
+                        <div class="value">${data.oss_url}</div>
+                    </div>
+                    ` : ''}
+                    ${data.transcript_text ? `
+                    <div class="detail-item">
+                        <label>转录文本</label>
+                        <div class="value" style="white-space: pre-wrap; max-height: 200px; overflow-y: auto;">${data.transcript_text}</div>
+                    </div>
+                    ` : ''}
+                    ${data.metadata ? `
+                    <div class="detail-item">
+                        <label>元数据</label>
+                        <div class="value" style="font-family: monospace; font-size: 0.8rem;">${JSON.stringify(data.metadata, null, 2)}</div>
+                    </div>
+                    ` : ''}
+                    <div class="detail-item">
+                        <label>创建时间</label>
+                        <div class="value">${new Date(data.created_at).toLocaleString('zh-CN')}</div>
+                    </div>
+                `;
+
+                // 显示关联的加工数据
+                if (processedData && processedData.length > 0) {
+                    content.innerHTML += `
+                        <div class="processed-data-list">
+                            <label style="font-size: 0.875rem; font-weight: 600;">关联的加工数据 (${processedData.length})</label>
+                            ${processedData.map(pd => `
+                                <div class="processed-data-item" style="margin-top: 0.5rem;">
+                                    <div style="font-size: 0.85rem;">
+                                        <strong>${pd.type}</strong> / ${pd.category}
+                                        <span class="badge" style="margin-left: 0.5rem;">置信度：${(pd.ai_confidence_score * 100).toFixed(0)}%</span>
+                                        <span class="badge badge-${pd.review_status}" style="margin-left: 0.25rem;">${pd.review_status}</span>
+                                    </div>
+                                    <div style="font-size: 0.75rem; color: var(--gray-600); margin-top: 0.25rem;">
+                                        ${new Date(pd.created_at).toLocaleString('zh-CN')}
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    `;
+                }
+
+                document.getElementById('detail-modal').classList.add('active');
+            } catch (err) {
+                showToast('加载详情失败：' + err.message, 'error');
+            }
+        }
+
+        // 快速处理
+        async function quickProcess(id) {
+            if (!confirm('确认处理此源数据？')) return;
+
+            try {
+                const res = await fetch(`${API_BASE}/${id}/review`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'approved' })
+                });
+
+                if (res.ok) {
+                    showToast('已提交处理', 'success');
+                    await loadData();
+                    await loadStats();
+                } else {
+                    const err = await res.json();
+                    showToast(err.error || '处理失败', 'error');
+                }
+            } catch (err) {
+                showToast('操作失败：' + err.message, 'error');
+            }
+        }
+
+        // 标记重复
+        async function markDuplicate(id) {
+            const duplicateOf = prompt('请输入原始数据 ID（可选）:');
+
+            try {
+                const res = await fetch(`${API_BASE}/${id}/status`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        status: 'duplicate',
+                        duplicateOf: duplicateOf || id
+                    })
+                });
+
+                if (res.ok) {
+                    showToast('已标记为重复', 'success');
+                    await loadData();
+                    await loadStats();
+                } else {
+                    const err = await res.json();
+                    showToast(err.error || '操作失败', 'error');
+                }
+            } catch (err) {
+                showToast('操作失败：' + err.message, 'error');
+            }
+        }
+
+        // 删除
+        async function deleteItem(id) {
+            if (!confirm('确认删除此源数据？此操作不可恢复。')) return;
+
+            try {
+                const res = await fetch(`${API_BASE}/${id}`, {
+                    method: 'DELETE'
+                });
+
+                if (res.ok) {
+                    showToast('已删除', 'success');
+                    await loadData();
+                    await loadStats();
+                } else {
+                    const err = await res.json();
+                    showToast(err.error || '删除失败', 'error');
+                }
+            } catch (err) {
+                showToast('操作失败：' + err.message, 'error');
+            }
+        }
+
+        // 应用筛选
+        function applyFilters() {
+            state.filters = {
+                source: document.getElementById('filter-source').value,
+                status: document.getElementById('filter-status').value,
+                batchId: document.getElementById('filter-batch').value,
+                startDate: document.getElementById('filter-start-date').value,
+                endDate: document.getElementById('filter-end-date').value
+            };
+            state.page = 1;
+            loadData();
+        }
+
+        // 重置筛选
+        function resetFilters() {
+            document.getElementById('filter-source').value = '';
+            document.getElementById('filter-status').value = '';
+            document.getElementById('filter-batch').value = '';
+            document.getElementById('filter-start-date').value = '';
+            document.getElementById('filter-end-date').value = '';
+            state.filters = {};
+            state.page = 1;
+            loadData();
+        }
+
+        // 更新分页
+        function updatePagination(pagination) {
+            document.getElementById('pagination-info').textContent =
+                `共 ${pagination.total} 条，第 ${pagination.page} / ${pagination.totalPages} 页`;
+            document.getElementById('btn-prev').disabled = pagination.page <= 1;
+            document.getElementById('btn-next').disabled = pagination.page >= pagination.totalPages;
+        }
+
+        // 上一页/下一页
+        function prevPage() {
+            if (state.page > 1) {
+                state.page--;
+                loadData();
+            }
+        }
+
+        function nextPage() {
+            state.page++;
+            loadData();
+        }
+
+        // 显示上传模态框
+        function showUploadModal() {
+            document.getElementById('upload-modal').classList.add('active');
+            document.getElementById('upload-batch-id').value = 'batch-' + Date.now();
+            document.getElementById('upload-texts').value = '';
+            document.getElementById('file-input').value = '';
+            document.getElementById('file-preview').style.display = 'none';
+        }
+
+        // 关闭上传模态框
+        function closeUploadModal() {
+            document.getElementById('upload-modal').classList.remove('active');
+        }
+
+        // 切换上传方式
+        function switchUploadTab(tab) {
+            const textTab = document.getElementById('tab-text');
+            const urlTab = document.getElementById('tab-url');
+            const fileTab = document.getElementById('tab-file');
+            const textDiv = document.getElementById('upload-tab-text');
+            const urlDiv = document.getElementById('upload-tab-url');
+            const fileDiv = document.getElementById('upload-tab-file');
+
+            // 重置所有按钮和面板
+            textTab.className = 'btn btn-secondary';
+            urlTab.className = 'btn btn-secondary';
+            fileTab.className = 'btn btn-secondary';
+            textDiv.style.display = 'none';
+            urlDiv.style.display = 'none';
+            fileDiv.style.display = 'none';
+
+            // 激活选中的标签
+            if (tab === 'text') {
+                textTab.className = 'btn btn-primary';
+                textDiv.style.display = 'block';
+            } else if (tab === 'url') {
+                urlTab.className = 'btn btn-primary';
+                urlDiv.style.display = 'block';
+            } else {
+                fileTab.className = 'btn btn-primary';
+                fileDiv.style.display = 'block';
+            }
+        }
+
+        // 裂变开关切换事件监听
+        document.addEventListener('DOMContentLoaded', function() {
+            // 文本输入标签页
+            const fissionEnable = document.getElementById('fission-enable');
+            const fissionConfig = document.getElementById('fission-config');
+            if (fissionEnable && fissionConfig) {
+                fissionEnable.addEventListener('change', function(e) {
+                    fissionConfig.style.display = e.target.checked ? 'block' : 'none';
+                });
+            }
+
+            // 文件上传标签页
+            const fissionEnableFile = document.getElementById('fission-enable-file');
+            const fissionConfigFile = document.getElementById('fission-config-file');
+            if (fissionEnableFile && fissionConfigFile) {
+                fissionEnableFile.addEventListener('change', function(e) {
+                    fissionConfigFile.style.display = e.target.checked ? 'block' : 'none';
+                });
+            }
+
+            // URL 上传标签页
+            const fissionEnableUrl = document.getElementById('fission-enable-url');
+            const fissionConfigUrl = document.getElementById('fission-config-url');
+            if (fissionEnableUrl && fissionConfigUrl) {
+                fissionEnableUrl.addEventListener('change', function(e) {
+                    fissionConfigUrl.style.display = e.target.checked ? 'block' : 'none';
+                });
+            }
+        });
+
+        // 获取选中的裂变方向（文本输入标签页）
+        function getSelectedPurposes() {
+            const checkboxes = document.querySelectorAll('#upload-tab-text input[name="fission-purpose"]:checked');
+            return Array.from(checkboxes).map(cb => cb.value);
+        }
+
+        // 获取选中的裂变方向（文件上传标签页）
+        function getSelectedPurposesFile() {
+            const checkboxes = document.querySelectorAll('#upload-tab-file input[name="fission-purpose-file"]:checked');
+            return Array.from(checkboxes).map(cb => cb.value);
+        }
+
+        // 获取裂变配置（文本输入标签页）
+        function getFissionConfig() {
+            const purposes = getSelectedPurposes();
+            const config = {};
+            purposes.forEach(purpose => {
+                const countEl = document.querySelector(`#upload-tab-text input[name="fission-count-${purpose}"]`);
+                const reqEl = document.querySelector(`#upload-tab-text textarea[name="fission-requirement-${purpose}"]`);
+                config[purpose] = {
+                    count: parseInt(countEl?.value) || 0,
+                    requirement: reqEl?.value || ''
+                };
+            });
+            return {
+                enabled: document.getElementById('fission-enable')?.checked || false,
+                purposes,
+                config
+            };
+        }
+
+        // 获取裂变配置（文件上传标签页）
+        function getFissionConfigFile() {
+            const purposes = getSelectedPurposesFile();
+            const config = {};
+            purposes.forEach(purpose => {
+                const countEl = document.querySelector(`#upload-tab-file input[name="fission-count-${purpose}-file"]`);
+                const reqEl = document.querySelector(`#upload-tab-file textarea[name="fission-requirement-${purpose}-file"]`);
+                config[purpose] = {
+                    count: parseInt(countEl?.value) || 0,
+                    requirement: reqEl?.value || ''
+                };
+            });
+            return {
+                enabled: document.getElementById('fission-enable-file')?.checked || false,
+                purposes,
+                config
+            };
+        }
+
+        // 获取裂变配置（URL 上传标签页）
+        function getFissionConfigUrl() {
+            const purposes = ['rag', 'finetuning', 'content_creation'];
+            const config = {};
+            purposes.forEach(purpose => {
+                const countEl = document.querySelector(`#upload-tab-url input[name="fission-count-${purpose}-url"]`);
+                const reqEl = document.querySelector(`#upload-tab-url textarea[name="fission-requirement-${purpose}-url"]`);
+                config[purpose] = {
+                    count: parseInt(countEl?.value) || 0,
+                    requirement: reqEl?.value || ''
+                };
+            });
+            return {
+                enabled: document.getElementById('fission-enable-url')?.checked || false,
+                purposes,
+                config
+            };
+        }
+
+        // 处理文件选择
+        let selectedFile = null;
+        let fileTexts = [];
+
+        function handleFileSelect(event) {
+            const file = event.target.files[0];
+            if (file) {
+                selectedFile = file;
+                readFile(file);
+            }
+        }
+
+        // 读取文件内容
+        function readFile(file) {
+            const reader = new FileReader();
+            const fileName = file.name;
+            const fileExt = fileName.split('.').pop().toLowerCase();
+
+            if (fileExt === 'txt' || fileExt === 'csv') {
+                reader.onload = function(e) {
+                    const content = e.target.result;
+                    fileTexts = content.split('\n').map(t => t.trim()).filter(t => t);
+                    showFilePreview(fileName, fileTexts.length);
+                };
+                reader.readAsText(file, 'UTF-8');
+            } else if (fileExt === 'xlsx' || fileExt === 'xls') {
+                // Excel 文件需要额外库支持，这里先提示
+                showToast('⚠️ Excel 文件需要解析库支持，请先转换为 TXT 或 CSV 格式', 'warn');
+                // 简单处理：读取为文本尝试解析
+                reader.onload = function(e) {
+                    const content = e.target.result;
+                    fileTexts = content.split(/\r?\n/).map(t => t.trim()).filter(t => t);
+                    showFilePreview(fileName, fileTexts.length);
+                };
+                reader.readAsText(file, 'UTF-8');
+            } else if (fileExt === 'json') {
+                // JSON 文件支持
+                reader.onload = function(e) {
+                    try {
+                        const json = JSON.parse(e.target.result);
+                        // 如果是数组 [{content: "..."}, ...]
+                        if (Array.isArray(json)) {
+                            fileTexts = json.map(item => item.content || item.text || item.title || JSON.stringify(item));
+                        }
+                        // 如果是对象 {data: [...]}
+                        else if (json.data && Array.isArray(json.data)) {
+                            fileTexts = json.data.map(item => item.content || item.text || item.title || JSON.stringify(item));
+                        }
+                        // 如果是对象 {items: [...]}
+                        else if (json.items && Array.isArray(json.items)) {
+                            fileTexts = json.items.map(item => item.content || item.text || item.title || JSON.stringify(item));
+                        }
+                        // 其他情况：尝试提取所有字符串值
+                        else if (typeof json === 'object' && json !== null) {
+                            // 递归提取所有字符串值
+                            const extractStrings = (obj) => {
+                                const results = [];
+                                if (typeof obj === 'string') {
+                                    results.push(obj);
+                                } else if (Array.isArray(obj)) {
+                                    obj.forEach(item => results.push(...extractStrings(item)));
+                                } else if (typeof obj === 'object' && obj !== null) {
+                                    Object.values(obj).forEach(val => results.push(...extractStrings(val)));
+                                }
+                                return results;
+                            };
+                            fileTexts = extractStrings(json).filter(t => t.trim());
+                        }
+
+                        if (fileTexts.length === 0) {
+                            showToast('⚠️ JSON 中未找到有效数据，请检查格式', 'warn');
+                        }
+                        showFilePreview(fileName, fileTexts.length);
+                    } catch (err) {
+                        showToast('JSON 格式错误：' + err.message, 'error');
+                    }
+                };
+                reader.readAsText(file, 'UTF-8');
+            }
+        }
+
+        // 显示文件预览
+        function showFilePreview(fileName, count) {
+            document.getElementById('file-name').textContent = fileName;
+            document.getElementById('file-count').textContent = `(${count} 条数据)`;
+            document.getElementById('file-preview').style.display = 'block';
+        }
+
+        // 移除文件
+        function removeFile() {
+            selectedFile = null;
+            fileTexts = [];
+            document.getElementById('file-input').value = '';
+            document.getElementById('file-preview').style.display = 'none';
+        }
+
+        // 确认上传
+        async function confirmUpload() {
+            // 检查当前是哪种上传方式
+            const urlDiv = document.getElementById('upload-tab-url');
+            const fileDiv = document.getElementById('upload-tab-file');
+            const isUrlUpload = urlDiv.style.display !== 'none';
+            const isFileUpload = fileDiv.style.display !== 'none';
+
+            if (isUrlUpload) {
+                // URL 上传方式
+                const source = document.getElementById('url-upload-source').value;
+                const batchId = document.getElementById('url-upload-batch-id').value.trim();
+                const urlsStr = document.getElementById('upload-urls').value.trim();
+                const jsonPath = document.getElementById('json-path').value.trim();
+
+                if (!batchId) {
+                    showToast('请输入批次 ID', 'error');
+                    return;
+                }
+
+                if (!urlsStr) {
+                    showToast('请输入至少一个 URL 链接', 'error');
+                    return;
+                }
+
+                const urls = urlsStr.split('\n').map(u => u.trim()).filter(u => u);
+                if (urls.length === 0) {
+                    showToast('至少需要一个有效 URL', 'error');
+                    return;
+                }
+
+                // 获取裂变配置
+                const fissionConfig = getFissionConfigUrl();
+
+                // 执行上传
+                await uploadUrls(urls, batchId, source, jsonPath, fissionConfig);
+            } else if (isFileUpload) {
+                // 文件上传方式
+                if (!selectedFile) {
+                    showToast('请选择文件', 'error');
+                    return;
+                }
+
+                const source = document.getElementById('file-upload-source').value;
+                const batchId = document.getElementById('file-upload-batch-id').value.trim();
+
+                if (!batchId) {
+                    showToast('请输入批次 ID', 'error');
+                    return;
+                }
+
+                if (fileTexts.length === 0) {
+                    showToast('文件中没有有效数据', 'error');
+                    return;
+                }
+
+                // 获取裂变配置
+                const fissionConfig = getFissionConfigFile();
+
+                // 执行上传
+                await uploadTexts(fileTexts, batchId, source, fissionConfig);
+            } else {
+                // 文本输入方式
+                const source = document.getElementById('upload-source').value;
+                const batchId = document.getElementById('upload-batch-id').value.trim();
+                const textsStr = document.getElementById('upload-texts').value.trim();
+
+                if (!batchId) {
+                    showToast('请输入批次 ID', 'error');
+                    return;
+                }
+
+                if (!textsStr) {
+                    showToast('请输入文本内容', 'error');
+                    return;
+                }
+
+                const texts = textsStr.split('\n').map(t => t.trim()).filter(t => t);
+                if (texts.length === 0) {
+                    showToast('至少需要一条有效文本', 'error');
+                    return;
+                }
+
+                // 获取裂变配置
+                const fissionConfig = getFissionConfig();
+
+                // 执行上传
+                await uploadTexts(texts, batchId, source, fissionConfig);
+            }
+        }
+
+        // 获取选中的裂变方向
+        function getSelectedPurposes() {
+            const checkboxes = document.querySelectorAll('input[name="fission-purpose"]:checked');
+            return Array.from(checkboxes).map(cb => cb.value);
+        }
+
+        // 执行文本上传
+        async function uploadTexts(texts, batchId, source, fissionConfig = {}) {
+            document.getElementById('upload-modal').querySelector('.btn-primary').disabled = true;
+            document.getElementById('upload-modal').querySelector('.btn-primary').textContent = '处理中...';
+
+            try {
+                // 构建请求体
+                const requestBody = {
+                    texts,
+                    batchId,
+                    source
+                };
+
+                // 如果启用了裂变，添加裂变配置
+                if (fissionConfig.enabled) {
+                    requestBody.purposes = fissionConfig.purposes;
+                    requestBody.fissionConfig = fissionConfig.config;
+                } else if (Array.isArray(fissionConfig)) {
+                    // 兼容旧版本（仅 purposes 数组）
+                    requestBody.purposes = fissionConfig;
+                }
+
+                const res = await fetch(`${API_BASE}/batch-text`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(requestBody)
+                });
+
+                const result = await res.json();
+
+                if (res.ok && result.success) {
+                    // 显示裂变效果
+                    const fissionMsg = result.totalFissionCount > result.successCount
+                        ? `（裂变 ${result.totalFissionCount} 条加工数据）`
+                        : '';
+                    showToast(`上传完成：成功 ${result.successCount}/${result.total} ${fissionMsg}`, 'success');
+                    closeUploadModal();
+                    removeFile();
+                    await loadData();
+                    await loadStats();
+                } else {
+                    showToast(result.error || '上传失败', 'error');
+                }
+            } catch (err) {
+                showToast('操作失败：' + err.message, 'error');
+            } finally {
+                const btn = document.getElementById('upload-modal').querySelector('.btn-primary');
+                btn.disabled = false;
+                btn.textContent = '上传并处理';
+            }
+        }
+
+        // 执行 URL 上传
+        async function uploadUrls(urls, batchId, source, jsonPath, fissionConfig = {}) {
+            document.getElementById('upload-modal').querySelector('.btn-primary').disabled = true;
+            document.getElementById('upload-modal').querySelector('.btn-primary').textContent = '处理中...';
+
+            try {
+                // 构建请求体
+                const requestBody = {
+                    urls,
+                    batchId,
+                    source,
+                    jsonPath
+                };
+
+                // 如果启用了裂变，添加裂变配置
+                if (fissionConfig.enabled) {
+                    requestBody.purposes = fissionConfig.purposes;
+                    requestBody.fissionConfig = fissionConfig.config;
+                }
+
+                const res = await fetch(`${API_BASE}/upload`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(requestBody)
+                });
+
+                const result = await res.json();
+
+                if (res.ok && result.success) {
+                    const fissionMsg = result.totalFissionCount > 0
+                        ? `（裂变 ${result.totalFissionCount} 条加工数据）`
+                        : '';
+                    showToast(`上传完成：成功 ${result.successCount}/${result.total} ${fissionMsg}`, 'success');
+                    closeUploadModal();
+                    await loadData();
+                    await loadStats();
+                } else {
+                    showToast(result.error || '上传失败', 'error');
+                }
+            } catch (err) {
+                showToast('操作失败：' + err.message, 'error');
+            } finally {
+                const btn = document.getElementById('upload-modal').querySelector('.btn-primary');
+                btn.disabled = false;
+                btn.textContent = '上传并处理';
+            }
+        }
+
+        // 关闭详情模态框
+        function closeDetailModal() {
+            document.getElementById('detail-modal').classList.remove('active');
+        }
+
+        // 导出
+        function exportData() {
+            showToast('🚧 导出功能开发中...', '');
+        }
+
+        // 拖拽事件处理
+        function handleDragOver(event) {
+            event.preventDefault();
+            event.stopPropagation();
+            document.getElementById('drop-zone').style.borderColor = 'var(--primary)';
+            document.getElementById('drop-zone').style.background = 'var(--gray-50)';
+        }
+
+        function handleDragLeave(event) {
+            event.preventDefault();
+            event.stopPropagation();
+            document.getElementById('drop-zone').style.borderColor = 'var(--gray-300)';
+            document.getElementById('drop-zone').style.background = 'transparent';
+        }
+
+        function handleDrop(event) {
+            event.preventDefault();
+            event.stopPropagation();
+            document.getElementById('drop-zone').style.borderColor = 'var(--gray-300)';
+            document.getElementById('drop-zone').style.background = 'transparent';
+
+            const files = event.dataTransfer.files;
+            if (files.length > 0) {
+                selectedFile = files[0];
+                readFile(selectedFile);
+            }
+        }
+
+        // 工具函数
+        function getSourceName(source) {
+            const names = {
+                zhihu: '知乎',
+                xiaohongshu: '小红书',
+                interview: '访谈',
+                submission: '投稿',
+                test: '测试'
+            };
+            return names[source] || source;
+        }
+
+        function getContentTypeName(type) {
+            const names = {
+                'text/plain': '文本',
+                'text/html': '网页',
+                'application/json': 'JSON',
+                'video/mp4': '视频',
+                'audio/mpeg': '音频'
+            };
+            return names[type] || type;
+        }
+
+        function getStatusName(status) {
+            const names = {
+                pending: '待处理',
+                processed: '已处理',
+                duplicate: '重复'
+            };
+            return names[status] || status;
+        }
+
+        // Toast
+        function showToast(message, type = '') {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.className = 'toast show ' + type;
+            setTimeout(() => toast.classList.remove('show'), 2500);
+        }
+
+        // 点击模态框外部关闭
+        document.querySelectorAll('.modal-overlay').forEach(overlay => {
+            overlay.addEventListener('click', (e) => {
+                if (e.target === overlay) {
+                    overlay.classList.remove('active');
+                }
+            });
+        });
+    </script>
+</body>
+</html>

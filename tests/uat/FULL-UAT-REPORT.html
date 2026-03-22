@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AnnSight 全流程 UAT 测试报告</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+               max-width: 1200px; margin: 0 auto; padding: 2rem; background: #f5f5f5; }
+        .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                  color: white; padding: 2rem; border-radius: 10px; margin-bottom: 2rem; }
+        .header h1 { margin: 0 0 1rem 0; }
+        .summary { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-bottom: 2rem; }
+        .summary-card { background: white; padding: 1.5rem; border-radius: 8px; text-align: center; }
+        .summary-card .value { font-size: 2.5rem; font-weight: 700; }
+        .summary-card .label { color: #666; margin-top: 0.5rem; }
+        .summary-card.pass .value { color: #10b981; }
+        .summary-card.fail .value { color: #ef4444; }
+        .test-item { background: white; padding: 1rem 1.5rem; border-radius: 8px;
+                     margin-bottom: 0.75rem; display: flex; align-items: center; gap: 1rem; }
+        .test-item.pass { border-left: 4px solid #10b981; }
+        .test-item.fail { border-left: 4px solid #ef4444; }
+        .test-item.skip { border-left: 4px solid #f59e0b; opacity: 0.7; }
+        .test-id { font-family: monospace; background: #f0f0f0; padding: 0.25rem 0.5rem;
+                   border-radius: 4px; font-size: 0.85rem; }
+        .test-name { flex: 1; font-weight: 600; }
+        .test-status { padding: 0.25rem 0.75rem; border-radius: 20px; font-size: 0.8rem; font-weight: 600; }
+        .test-status.pass { background: #d1fae5; color: #065f46; }
+        .test-status.fail { background: #fee2e2; color: #991b1b; }
+        .test-status.skip { background: #fef3c7; color: #92400e; }
+        .test-details { color: #666; font-size: 0.9rem; margin-top: 0.25rem; }
+        .screenshot-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+                           gap: 1rem; margin-top: 2rem; }
+        .screenshot-item { background: white; padding: 0.5rem; border-radius: 8px; }
+        .screenshot-item img { width: 100%; border-radius: 4px; }
+        .screenshot-item p { margin: 0.5rem 0 0 0; font-size: 0.85rem; color: #666; text-align: center; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🎯 AnnSight 数据全流程 UAT 测试报告</h1>
+        <p>测试时间：2026/3/21 16:59:44</p>
+        <p>测试范围：源数据上传 → ETL 处理 → 数据审核 → 统计验证</p>
+    </div>
+
+    <div class="summary">
+        <div class="summary-card pass">
+            <div class="value">8</div>
+            <div class="label">✅ 通过</div>
+        </div>
+        <div class="summary-card fail">
+            <div class="value">0</div>
+            <div class="label">❌ 失败</div>
+        </div>
+        <div class="summary-card">
+            <div class="value">0</div>
+            <div class="label">⏭️ 跳过</div>
+        </div>
+        <div class="summary-card">
+            <div class="value">10.5s</div>
+            <div class="label">⏱️ 耗时</div>
+        </div>
+    </div>
+
+    <h2 style="margin-bottom: 1rem;">📋 测试用例详情</h2>
+    
+        <div class="test-item pass">
+            <span class="test-id">FULL-001</span>
+            <div>
+                <div class="test-name">源数据批量上传</div>
+                <div class="test-details">上传 3 条数据</div>
+            </div>
+            <span class="test-status pass">通过</span>
+        </div>
+    
+        <div class="test-item pass">
+            <span class="test-id">FULL-002</span>
+            <div>
+                <div class="test-name">源数据列表展示</div>
+                <div class="test-details">展示 3 条数据</div>
+            </div>
+            <span class="test-status pass">通过</span>
+        </div>
+    
+        <div class="test-item pass">
+            <span class="test-id">FULL-003</span>
+            <div>
+                <div class="test-name">加工数据自动生成</div>
+                <div class="test-details">生成 12 条加工数据，平均置信度：68%</div>
+            </div>
+            <span class="test-status pass">通过</span>
+        </div>
+    
+        <div class="test-item pass">
+            <span class="test-id">FULL-004</span>
+            <div>
+                <div class="test-name">数据审核通过</div>
+                <div class="test-details">审核通过 ID: 4626-f4v41</div>
+            </div>
+            <span class="test-status pass">通过</span>
+        </div>
+    
+        <div class="test-item pass">
+            <span class="test-id">FULL-005</span>
+            <div>
+                <div class="test-name">数据审核拒绝</div>
+                <div class="test-details">拒绝 ID: 4616-l9mdo</div>
+            </div>
+            <span class="test-status pass">通过</span>
+        </div>
+    
+        <div class="test-item pass">
+            <span class="test-id">FULL-006</span>
+            <div>
+                <div class="test-name">批量审核操作</div>
+                <div class="test-details">批量通过 2 条数据</div>
+            </div>
+            <span class="test-status pass">通过</span>
+        </div>
+    
+        <div class="test-item pass">
+            <span class="test-id">FULL-007</span>
+            <div>
+                <div class="test-name">统计数据验证</div>
+                <div class="test-details">源数据 11 条，加工数据：待审核13 已通过7 已拒绝2</div>
+            </div>
+            <span class="test-status pass">通过</span>
+        </div>
+    
+        <div class="test-item pass">
+            <span class="test-id">FULL-008</span>
+            <div>
+                <div class="test-name">前端界面交互测试</div>
+                <div class="test-details">前端交互正常</div>
+            </div>
+            <span class="test-status pass">通过</span>
+        </div>
+    
+
+    <h2 style="margin: 2rem 0 1rem 0;">📸 测试截图</h2>
+    <div class="screenshot-grid">
+        
+            <div class="screenshot-item">
+                <img src="./screenshots-full-uat/FULL-001-*.png" onerror="this.style.display='none'">
+                <p>FULL-001: 源数据批量上传</p>
+            </div>
+        
+            <div class="screenshot-item">
+                <img src="./screenshots-full-uat/FULL-002-*.png" onerror="this.style.display='none'">
+                <p>FULL-002: 源数据列表展示</p>
+            </div>
+        
+            <div class="screenshot-item">
+                <img src="./screenshots-full-uat/FULL-003-*.png" onerror="this.style.display='none'">
+                <p>FULL-003: 加工数据自动生成</p>
+            </div>
+        
+            <div class="screenshot-item">
+                <img src="./screenshots-full-uat/FULL-004-*.png" onerror="this.style.display='none'">
+                <p>FULL-004: 数据审核通过</p>
+            </div>
+        
+            <div class="screenshot-item">
+                <img src="./screenshots-full-uat/FULL-005-*.png" onerror="this.style.display='none'">
+                <p>FULL-005: 数据审核拒绝</p>
+            </div>
+        
+            <div class="screenshot-item">
+                <img src="./screenshots-full-uat/FULL-006-*.png" onerror="this.style.display='none'">
+                <p>FULL-006: 批量审核操作</p>
+            </div>
+        
+            <div class="screenshot-item">
+                <img src="./screenshots-full-uat/FULL-007-*.png" onerror="this.style.display='none'">
+                <p>FULL-007: 统计数据验证</p>
+            </div>
+        
+            <div class="screenshot-item">
+                <img src="./screenshots-full-uat/FULL-008-*.png" onerror="this.style.display='none'">
+                <p>FULL-008: 前端界面交互测试</p>
+            </div>
+        
+    </div>
+</body>
+</html>

@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ETL Pipeline UAT 测试报告</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: #f5f5f5;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        .container { max-width: 1200px; margin: 0 auto; }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+        .header h1 { font-size: 28px; margin-bottom: 10px; }
+        .summary { display: flex; gap: 20px; margin-top: 20px; }
+        .summary-card {
+            background: rgba(255,255,255,0.2);
+            padding: 15px 25px;
+            border-radius: 8px;
+            text-align: center;
+        }
+        .summary-card .value { font-size: 32px; font-weight: bold; }
+        .summary-card .label { font-size: 14px; opacity: 0.9; }
+        .test-card {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 15px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            border-left: 4px solid #ccc;
+        }
+        .test-card.passed { border-left-color: #10b981; }
+        .test-card.failed { border-left-color: #ef4444; }
+        .test-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        .test-name { font-size: 18px; font-weight: 600; }
+        .test-status {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        .test-status.passed { background: #d1fae5; color: #065f46; }
+        .test-status.failed { background: #fee2e2; color: #991b1b; }
+        .test-details { font-size: 14px; color: #666; }
+        .test-details .field {
+            display: inline-block;
+            margin-right: 20px;
+            padding: 4px 8px;
+            background: #f3f4f6;
+            border-radius: 4px;
+        }
+        .error-box {
+            background: #fef2f2;
+            border: 1px solid #fecaca;
+            color: #991b1b;
+            padding: 10px 15px;
+            border-radius: 6px;
+            margin-top: 10px;
+            font-family: monospace;
+            font-size: 13px;
+        }
+        .screenshot-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+        .screenshot-item {
+            background: #f9fafb;
+            border-radius: 8px;
+            overflow: hidden;
+            border: 1px solid #e5e7eb;
+        }
+        .screenshot-item img { width: 100%; height: auto; display: block; }
+        .screenshot-item .caption {
+            padding: 8px 12px;
+            font-size: 12px;
+            color: #666;
+            background: white;
+        }
+        .footer { text-align: center; padding: 20px; color: #666; font-size: 14px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🧪 ETL Pipeline UAT 测试报告</h1>
+            <div class="summary">
+                <div class="summary-card">
+                    <div class="value">5</div>
+                    <div class="label">总测试数</div>
+                </div>
+                <div class="summary-card">
+                    <div class="value" style="color: #10b981;">5</div>
+                    <div class="label">通过</div>
+                </div>
+                <div class="summary-card">
+                    <div class="value" style="color: #ef4444;">0</div>
+                    <div class="label">失败</div>
+                </div>
+                <div class="summary-card">
+                    <div class="value">100.0%</div>
+                    <div class="label">通过率</div>
+                </div>
+            </div>
+        </div>
+
+        <h2 style="margin-bottom: 15px;">测试详情</h2>
+        
+            <div class="test-card passed">
+                <div class="test-header">
+                    <span class="test-name">处理纯文本并提取结构化数据 <span style="color: #999; font-weight: normal;">[etl-001]</span></span>
+                    <span class="test-status passed">✓ 通过</span>
+                </div>
+                <div class="test-details"><span class="field">处理结果: <strong>成功</strong></span><span class="field">检测类型: <strong>教训案例</strong></span><span class="field">AI 置信度: <strong>90%</strong></span><span class="field">质量评分: <strong>75%</strong></span><span class="field">分类: <strong>职场</strong></span></div>
+                
+                <div class="screenshot-grid">
+                <div class="screenshot-item">
+                        <img src="screenshots/etl-001-result-2026-03-21T08-11-32.png" alt="测试结果：通过">
+                        <div class="caption">测试结果：通过</div>
+                    </div>
+            </div>
+            </div>
+        
+            <div class="test-card passed">
+                <div class="test-header">
+                    <span class="test-name">MD5 去重检测 <span style="color: #999; font-weight: normal;">[etl-002]</span></span>
+                    <span class="test-status passed">✓ 通过</span>
+                </div>
+                <div class="test-details"><span class="field">第一次处理: <strong>成功</strong></span><span class="field">第二次处理: <strong>检测到重复</strong></span></div>
+                
+                <div class="screenshot-grid">
+                <div class="screenshot-item">
+                        <img src="screenshots/etl-002-result-2026-03-21T08-11-32.png" alt="测试结果：通过">
+                        <div class="caption">测试结果：通过</div>
+                    </div>
+            </div>
+            </div>
+        
+            <div class="test-card passed">
+                <div class="test-header">
+                    <span class="test-name">处理不存在的原始数据 <span style="color: #999; font-weight: normal;">[etl-003]</span></span>
+                    <span class="test-status passed">✓ 通过</span>
+                </div>
+                <div class="test-details"><span class="field">错误消息: <strong>原始数据不存在</strong></span></div>
+                
+                <div class="screenshot-grid">
+                <div class="screenshot-item">
+                        <img src="screenshots/etl-003-result-2026-03-21T08-11-33.png" alt="测试结果：通过">
+                        <div class="caption">测试结果：通过</div>
+                    </div>
+            </div>
+            </div>
+        
+            <div class="test-card passed">
+                <div class="test-header">
+                    <span class="test-name">长文本处理与质量评估 <span style="color: #999; font-weight: normal;">[etl-004]</span></span>
+                    <span class="test-status passed">✓ 通过</span>
+                </div>
+                <div class="test-details"><span class="field">处理结果: <strong>成功</strong></span><span class="field">检测类型: <strong>战术方法</strong></span><span class="field">AI 置信度: <strong>60%</strong></span><span class="field">质量评分: <strong>66%</strong></span><span class="field">分类: <strong>职场</strong></span></div>
+                
+                <div class="screenshot-grid">
+                <div class="screenshot-item">
+                        <img src="screenshots/etl-004-result-2026-03-21T08-11-34.png" alt="测试结果：通过">
+                        <div class="caption">测试结果：通过</div>
+                    </div>
+            </div>
+            </div>
+        
+            <div class="test-card passed">
+                <div class="test-header">
+                    <span class="test-name">战术方法类型识别 <span style="color: #999; font-weight: normal;">[etl-005]</span></span>
+                    <span class="test-status passed">✓ 通过</span>
+                </div>
+                <div class="test-details"><span class="field">处理结果: <strong>成功</strong></span><span class="field">检测类型: <strong>战术方法</strong></span><span class="field">AI 置信度: <strong>70%</strong></span><span class="field">质量评分: <strong>65%</strong></span><span class="field">分类: <strong>职场</strong></span></div>
+                
+                <div class="screenshot-grid">
+                <div class="screenshot-item">
+                        <img src="screenshots/etl-005-result-2026-03-21T08-11-35.png" alt="测试结果：通过">
+                        <div class="caption">测试结果：通过</div>
+                    </div>
+            </div>
+            </div>
+        
+
+        <div class="footer">生成时间：2026/3/21 16:11:35</div>
+    </div>
+</body>
+</html>
