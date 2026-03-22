@@ -630,7 +630,7 @@
                 </div>
 
                 <div class="modal-actions">
-                    <button class="btn btn-skip" onclick="closeOptimizeModal()">取消</button>
+                    <button class="btn btn-skip" onclick="resetOptimizationState(); closeOptimizeModal()">取消</button>
                     <button class="btn btn-primary" onclick="submitOptimizeRequest()" id="optimize-generate-btn">
                         ✨ 生成优化建议
                     </button>
@@ -1028,7 +1028,14 @@
 
         function closeOptimizeModal() {
             document.getElementById('optimize-modal').classList.remove('active');
+            // 不在这里清空数据，让 applyOptimization 可以使用
+            // console.log('[OPTIMIZE] 模态框已关闭，currentOptimizationData 保持原值:', currentOptimizationData ? '有数据' : 'null');
+        }
+
+        function resetOptimizationState() {
+            // 真正清空数据的版本，用于取消操作
             currentOptimizationData = null;
+            console.log('[OPTIMIZE] 优化状态已重置');
         }
 
         async function submitOptimizeRequest() {
@@ -1050,6 +1057,7 @@
                 });
 
                 const result = await res.json();
+                console.log('[OPTIMIZE] 优化 API 响应:', result);
 
                 if (!res.ok) {
                     throw new Error(result.error || '优化失败');
@@ -1057,6 +1065,7 @@
 
                 // 显示优化结果
                 currentOptimizationData = result;
+                console.log('[OPTIMIZE] currentOptimizationData 已设置:', result.optimized ? '有优化数据' : '缺少 optimized 字段');
                 document.getElementById('optimize-note').textContent = result.optimizationNote || '优化完成';
                 document.getElementById('optimize-new-title').textContent = result.optimized.title || '-';
                 document.getElementById('optimize-new-type').textContent = result.optimized.type || '-';
@@ -1079,10 +1088,16 @@
         }
 
         async function applyOptimization() {
+            console.log('[OPTIMIZE] applyOptimization 被调用');
+            console.log('[OPTIMIZE] currentOptimizationData:', currentOptimizationData ? '有数据' : 'null');
+
             if (!currentOptimizationData) {
-                showToast('⚠️ 没有可应用的优化', 'error');
+                console.error('[OPTIMIZE] currentOptimizationData 为空');
+                showToast('⚠️ 没有可应用的优化，请重新生成', 'error');
                 return;
             }
+
+            console.log('[OPTIMIZE] 开始应用优化，ID:', state.selectedItem.id);
 
             const btn = document.getElementById('optimize-apply-btn');
             btn.disabled = true;
@@ -1095,23 +1110,32 @@
                     body: JSON.stringify({ optimizedData: currentOptimizationData.optimized })
                 });
 
+                console.log('[OPTIMIZE] 响应状态:', res.status);
                 const result = await res.json();
+                console.log('[OPTIMIZE] 响应数据:', result);
 
                 if (!res.ok) {
                     throw new Error(result.error || '应用优化失败');
                 }
 
                 showToast('✅ 优化已应用', 'success');
-                closeOptimizeModal();
 
-                // 刷新当前项显示
+                // 刷新当前项显示（在关闭模态框之前使用数据）
                 state.selectedItem.title = currentOptimizationData.optimized.title;
                 state.selectedItem.content = currentOptimizationData.optimized.content;
                 state.selectedItem.type = currentOptimizationData.optimized.type;
                 state.selectedItem.category = currentOptimizationData.optimized.category;
+
+                // 关闭模态框并重置状态
+                closeOptimizeModal();
+                resetOptimizationState();
+
                 renderList();
                 renderReviewPanel();
+
+                console.log('[OPTIMIZE] 优化应用完成');
             } catch (err) {
+                console.error('[OPTIMIZE] 应用优化失败:', err);
                 showToast('❌ ' + err.message, 'error');
             } finally {
                 btn.disabled = false;

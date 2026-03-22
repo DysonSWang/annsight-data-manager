@@ -139,6 +139,13 @@ ${requirements}
             optimizationNote: optimizedData.optimizationNote || '优化完成'
         });
 
+        console.log('✅ 优化 API 响应已发送:', {
+            success: true,
+            hasOptimized: !!optimizedData,
+            optimizedType: optimizedData?.type,
+            optimizedTitle: optimizedData?.title?.slice(0, 30)
+        });
+
     } catch (error) {
         console.error('Error optimizing data:', error);
         res.status(500).json({ error: '优化失败：' + error.message });
@@ -154,7 +161,18 @@ async function applyOptimization(req, res) {
         const { id } = req.params;
         const { optimizedData } = req.body;
 
+        console.log('收到应用优化请求:', {
+            id,
+            optimizedData: {
+                type: optimizedData?.type,
+                category: optimizedData?.category,
+                title: optimizedData?.title?.slice(0, 50),
+                contentLength: optimizedData?.content?.length
+            }
+        });
+
         if (!id || !optimizedData) {
+            console.log('缺少必要参数');
             return res.status(400).json({ error: '缺少必要参数：id, optimizedData' });
         }
 
@@ -169,6 +187,8 @@ async function applyOptimization(req, res) {
             content: optimizedData.content,
             conversation: optimizedData.conversation || null
         });
+
+        console.log('✅ 优化已应用到数据库:', id);
 
         // 记录日志
         await req.app.locals.pool.query(`
