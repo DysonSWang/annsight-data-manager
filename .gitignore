@@ -1,0 +1,28 @@
+# 依赖
+node_modules/
+package-lock.json
+
+# 环境变量
+.env.local
+.env.*.local
+
+# 日志
+logs/
+*.log
+npm-debug.log*
+
+# 测试覆盖
+coverage/
+
+# 临时文件
+*.tmp
+*.swp
+.DS_Store
+
+# 上传的临时文件
+uploads/
+temp/
+
+# 数据库
+*.sqlite
+*.db
