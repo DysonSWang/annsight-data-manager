@@ -70,11 +70,12 @@ class EtlService {
 
             const pipeline = this.pipelineFactory.create('text', processors);
 
-            // 执行 Pipeline
+            // 执行 Pipeline（传递 pool 和 rawDataId 用于更新 processing_status）
             const result = await pipeline.execute({
                 rawDataId,
                 transcript,
-                sourceType: rawData.source
+                sourceType: rawData.source,
+                pool: this.pool
             });
 
             // 检查是否重复
@@ -262,6 +263,7 @@ class EtlService {
      * @param {object} metadata - 元数据
      * @param {string[]} metadata.purposes - 用途列表
      * @param {object} metadata.fissionConfig - 裂变配置（每种用途的数量和要求）
+     * @param {string} [metadata.rawDataId] - 原始数据 ID（用于更新 processing_status）
      * @returns {Promise<object>} 处理结果
      */
     async processText(text, metadata = {}) {
@@ -270,22 +272,24 @@ class EtlService {
             const processors = this._getProcessors();
 
             // 根据是否有 purposes 参数决定是否启用裂变模式
-            const { purposes, fissionConfig } = metadata;
+            const { purposes, fissionConfig, rawDataId } = metadata;
             const useFission = purposes && purposes.length > 0;
 
             // 创建 Pipeline 时选择配置
             const pipelineConfig = useFission ? 'fission' : 'text';
             const pipeline = this.pipelineFactory.create(pipelineConfig, processors);
 
-            // 执行 Pipeline
+            // 执行 Pipeline（传递 pool 和 rawDataId 用于更新 processing_status）
             const initialContext = {
                 rawText: text,
                 sourceType: metadata.source || 'upload',
                 batchId: metadata.batchId || 'manual',
                 purposes: purposes || ['rag'],
-                fissionConfig
+                fissionConfig,
+                rawDataId, // 传递给 Pipeline 用于更新 processing_status
+                pool: this.pool
             };
-            console.log('[ETL] processText initialContext:', { batchId: initialContext.batchId, source: initialContext.sourceType });
+            console.log('[ETL] processText initialContext:', { batchId: initialContext.batchId, source: initialContext.sourceType, rawDataId });
 
             const result = await pipeline.execute(initialContext);
 

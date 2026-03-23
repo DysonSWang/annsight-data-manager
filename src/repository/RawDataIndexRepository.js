@@ -185,6 +185,22 @@ class RawDataIndexRepository {
         `;
         await this.pool.query(query, [id, status]);
     }
+
+    /**
+     * 更新处理中状态（ETL 阶段追踪）
+     * @param {string} id - 记录 ID
+     * @param {string} processingStatus - 处理中状态 (processing_l1_clean, processing_l25_fission, processing_l2_structure, processing_l3_evaluate, processing_dedup)
+     * @returns {Promise<void>}
+     */
+    async updateProcessingStatus(id, processingStatus) {
+        const query = `
+            UPDATE raw_data_index
+            SET processing_status = $2,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = $1
+        `;
+        await this.pool.query(query, [id, processingStatus]);
+    }
 }
 
 module.exports = RawDataIndexRepository;

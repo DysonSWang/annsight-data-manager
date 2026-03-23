@@ -236,13 +236,25 @@ async function batchTextUpload(req, res) {
                     metadata: { text }
                 });
 
+                // 1.5 设置 processing_status 为处理中
+                await repo.updateProcessingStatus(id, 'processing_l1_clean');
+
                 // 2. 直接处理文本（跳过原始数据流程）
                 const processResult = await etlService.processText(text, {
                     source,
                     batchId,
                     purposes: selectedPurposes,
-                    fissionConfig // 传递裂变配置
+                    fissionConfig, // 传递裂变配置
+                    rawDataId: id // 传递 rawDataId 用于更新 processing_status
                 });
+
+                // 2.5 处理完成后更新状态
+                if (processResult.success) {
+                    await repo.updateStatus(id, 'processed');
+                    await repo.updateProcessingStatus(id, 'processed');
+                } else {
+                    await repo.updateProcessingStatus(id, 'failed');
+                }
 
                 // 计算裂变数量
                 let fissionCount = 1;

@@ -218,8 +218,20 @@
         .badge-pending { background: #fef3c7; color: #92400e; }
         .badge-processed { background: #d1fae5; color: #065f46; }
         .badge-duplicate { background: #e5e7eb; color: #374151; }
-        .badge-approved { background: #dbeafe; color: #1e40af; }
         .badge-rejected { background: #fee2e2; color: #991b1b; }
+        .badge-approved { background: #dbeafe; color: #1e40af; }
+
+        /* 处理中状态徽章 */
+        .badge-processing_l1_clean { background: #dbeafe; color: #1e40af; animation: pulse 2s infinite; }
+        .badge-processing_l25_fission { background: #e0e7ff; color: #3730a3; animation: pulse 2s infinite; }
+        .badge-processing_l2_structure { background: #ddd6fe; color: #5b21b6; animation: pulse 2s infinite; }
+        .badge-processing_l3_evaluate { background: #fbcfe8; color: #9f1239; animation: pulse 2s infinite; }
+        .badge-processing_dedup { background: #fecaca; color: #991b1b; animation: pulse 2s infinite; }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.6; }
+        }
 
         /* 操作按钮组 */
         .actions {
@@ -401,8 +413,10 @@
         <div class="header-content">
             <h1>🎯 AnnSight 数据管理平台</h1>
             <nav class="nav-tabs">
-                <a href="/" class="nav-tab">数据审核</a>
                 <a href="/raw-data.html" class="nav-tab active">源数据管理</a>
+                <a href="/" class="nav-tab">数据审核</a>
+                <a href="/spotcheck.html" class="nav-tab">抽检页面</a>
+                <a href="/finetuning/list.html" class="nav-tab">微调任务</a>
                 <a href="/stats.html" class="nav-tab">统计看板</a>
             </nav>
         </div>
@@ -478,6 +492,7 @@
                             <th>批次</th>
                             <th>类型</th>
                             <th>状态</th>
+                            <th>处理阶段</th>
                             <th>MD5</th>
                             <th>创建时间</th>
                             <th>操作</th>
@@ -942,6 +957,7 @@
                     <td>${item.batch_id}</td>
                     <td>${getContentTypeName(item.content_type)}</td>
                     <td><span class="badge badge-${item.status}">${getStatusName(item.status)}</span></td>
+                    <td>${item.processing_status ? `<span class="badge badge-${item.processing_status}">${getProcessingStageName(item.processing_status)}</span>` : '-'}</td>
                     <td style="font-family: monospace; font-size: 0.75rem;">${item.content_md5 ? item.content_md5.slice(0, 16) + '...' : '-'}</td>
                     <td>${new Date(item.created_at).toLocaleString('zh-CN')}</td>
                     <td>
@@ -967,7 +983,41 @@
                 const { data, processedData } = await res.json();
 
                 const content = document.getElementById('detail-content');
+
+                // ETL 阶段进度条
+                const etlStages = [
+                    { key: 'processing_l1_clean', label: '清洗', icon: '🧹' },
+                    { key: 'processing_l25_fission', label: '裂变', icon: '🔮' },
+                    { key: 'processing_l2_structure', label: '结构化', icon: '📊' },
+                    { key: 'processing_l3_evaluate', label: '评估', icon: '⭐' },
+                    { key: 'processing_dedup', label: '去重', icon: '🔄' },
+                    { key: 'processed', label: '完成', icon: '✅' }
+                ];
+
+                const currentStage = data.processing_status || '';
+                const stageIndex = etlStages.findIndex(s => s.key === currentStage);
+                const isProcessing = currentStage && currentStage !== 'processed' && currentStage.startsWith('processing_');
+
                 content.innerHTML = `
+                    ${isProcessing ? `
+                    <div style="margin-bottom: 1rem; padding: 0.75rem; background: var(--gray-50); border-radius: 6px;">
+                        <label style="font-size: 0.875rem; font-weight: 600; display: block; margin-bottom: 0.5rem;">🔄 处理进度</label>
+                        <div style="display: flex; gap: 0.25rem; align-items: center; flex-wrap: wrap;">
+                            ${etlStages.map((stage, idx) => {
+                                const isActive = idx <= stageIndex;
+                                const isCurrent = idx === stageIndex;
+                                return `
+                                    <div style="display: flex; align-items: center; gap: 0.25rem;">
+                                        <span style="font-size: 0.75rem; padding: 0.25rem 0.5rem; border-radius: 4px; background: ${isActive ? 'var(--primary)' : 'var(--gray-200)'}; color: ${isActive ? 'white' : 'var(--gray-600)'}; ${isCurrent ? 'animation: pulse 2s infinite;' : ''}">
+                                            ${stage.icon} ${stage.label}
+                                        </span>
+                                        ${idx < etlStages.length - 1 ? `<span style="color: var(--gray-300);">→</span>` : ''}
+                                    </div>
+                                `;
+                            }).join('')}
+                        </div>
+                    </div>
+                    ` : ''}
                     <div class="detail-item">
                         <label>完整 ID</label>
                         <div class="value" style="font-family: monospace;">${data.id}</div>
@@ -988,6 +1038,12 @@
                         <label>状态</label>
                         <div class="value"><span class="badge badge-${data.status}">${getStatusName(data.status)}</span></div>
                     </div>
+                    ${data.processing_status ? `
+                    <div class="detail-item">
+                        <label>处理阶段</label>
+                        <div class="value"><span class="badge badge-${data.processing_status}">${getProcessingStageName(data.processing_status)}</span></div>
+                    </div>
+                    ` : ''}
                     ${data.content_md5 ? `
                     <div class="detail-item">
                         <label>MD5</label>
@@ -1665,9 +1721,22 @@
             const names = {
                 pending: '待处理',
                 processed: '已处理',
-                duplicate: '重复'
+                duplicate: '重复',
+                rejected: '已拒绝'
             };
             return names[status] || status;
+        }
+
+        function getProcessingStageName(stage) {
+            const names = {
+                processing_l1_clean: '清洗中',
+                processing_l25_fission: '裂变中',
+                processing_l2_structure: '结构化中',
+                processing_l3_evaluate: '评估中',
+                processing_dedup: '去重中',
+                processed: '处理完成'
+            };
+            return names[stage] || stage;
         }
 
         // Toast

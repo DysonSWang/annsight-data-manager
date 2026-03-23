@@ -106,6 +106,19 @@ class DataPipeline {
         console.log(`[Pipeline] 开始执行流程：${this.config.name}`);
         console.log(`[Pipeline] 步骤数量：${this.config.steps.length}`);
 
+        // 如果有 rawDataId 和 pool，在每个步骤前更新 processing_status
+        const updateProcessingStatus = async (stage) => {
+            if (context.rawDataId && context.pool) {
+                try {
+                    const RawDataIndexRepository = require('../repository/RawDataIndexRepository');
+                    const repo = new RawDataIndexRepository(context.pool);
+                    await repo.updateProcessingStatus(context.rawDataId, stage);
+                } catch (err) {
+                    console.error(`[Pipeline] 更新 processing_status 失败：${err.message}`);
+                }
+            }
+        };
+
         for (const stepConfig of this.config.steps) {
             if (!stepConfig.enabled) {
                 console.log(`[Pipeline] 跳过步骤：${stepConfig.name}`);
@@ -116,6 +129,11 @@ class DataPipeline {
             if (!processor) {
                 throw new Error(`未找到处理器：${stepConfig.name}`);
             }
+
+            // 更新处理状态
+            const processingStage = `processing_${stepConfig.name.replace(/-/g, '_')}`;
+            console.log(`[Pipeline] 更新处理状态：${processingStage}`);
+            await updateProcessingStatus(processingStage);
 
             console.log(`[Pipeline] 执行步骤：${stepConfig.name}`);
 
@@ -134,6 +152,9 @@ class DataPipeline {
                 console.log(`[Pipeline] 步骤失败（非关键）: ${stepConfig.name}`);
             }
         }
+
+        // 处理完成，更新状态为 processed
+        await updateProcessingStatus('processed');
 
         console.log(`[Pipeline] 流程执行完成：${this.config.name}`);
         return { context, results };
