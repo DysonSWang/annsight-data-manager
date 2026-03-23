@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AnnSight - 数据审核详情</title>
+    <style>
+        :root {
+            --primary: #667eea;
+            --primary-dark: #5a67d8;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --gray-50: #f9fafb;
+            --gray-100: #f3f4f6;
+            --gray-200: #e5e7eb;
+            --gray-300: #d1d5db;
+            --gray-600: #4b5563;
+            --gray-700: #374151;
+            --gray-900: #111827;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--gray-100);
+            color: var(--gray-700);
+            line-height: 1.6;
+        }
+
+        .header {
+            background: linear-gradient(135deg, var(--primary) 0%, #764ba2 100%);
+            color: white;
+            padding: 1rem 2rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .header-content {
+            max-width: 1600px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header h1 { font-size: 1.5rem; font-weight: 700; }
+
+        .nav-tabs { display: flex; gap: 0.5rem; }
+
+        .nav-tab {
+            padding: 0.5rem 1rem;
+            border: none;
+            background: rgba(255,255,255,0.1);
+            color: white;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            text-decoration: none;
+            transition: all 0.2s;
+        }
+
+        .nav-tab:hover { background: rgba(255,255,255,0.2); }
+        .nav-tab.active { background: white; color: var(--primary); }
+
+        .container { max-width: 1600px; margin: 0 auto; padding: 1.5rem; }
+
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .btn {
+            padding: 0.625rem 1.25rem;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: all 0.2s;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-success { background: var(--success); color: white; }
+        .btn-danger { background: var(--danger); color: white; }
+        .btn-secondary { background: var(--gray-600); color: white; }
+        .btn-sm { padding: 0.375rem 0.75rem; font-size: 0.85rem; }
+
+        /* 审核轮次时间线 */
+        .timeline {
+            position: relative;
+            padding-left: 2rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .timeline::before {
+            content: '';
+            position: absolute;
+            left: 0.5rem;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: var(--gray-300);
+        }
+
+        .timeline-item {
+            position: relative;
+            background: white;
+            border-radius: 10px;
+            padding: 1.25rem;
+            margin-bottom: 1rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        .timeline-item::before {
+            content: '';
+            position: absolute;
+            left: -1.625rem;
+            top: 1.5rem;
+            width: 1rem;
+            height: 1rem;
+            border-radius: 50%;
+            background: var(--primary);
+            border: 3px solid white;
+            box-shadow: 0 0 0 2px var(--primary);
+        }
+
+        .timeline-item.ai_review::before { background: var(--success); box-shadow: 0 0 0 2px var(--success); }
+        .timeline-item.ai_optimize::before { background: var(--warning); box-shadow: 0 0 0 2px var(--warning); }
+        .timeline-item.manual_review::before { background: var(--danger); box-shadow: 0 0 0 2px var(--danger); }
+
+        .timeline-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+
+        .timeline-title {
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--gray-900);
+        }
+
+        .timeline-time {
+            font-size: 0.85rem;
+            color: var(--gray-600);
+        }
+
+        /* 评分展示 */
+        .score-display {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+            gap: 0.75rem;
+            margin: 1rem 0;
+            padding: 1rem;
+            background: var(--gray-50);
+            border-radius: 8px;
+        }
+
+        .score-item {
+            text-align: center;
+        }
+
+        .score-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+        }
+
+        .score-label {
+            font-size: 0.75rem;
+            color: var(--gray-600);
+            text-transform: uppercase;
+        }
+
+        .score-high { color: var(--success); }
+        .score-medium { color: var(--warning); }
+        .score-low { color: var(--danger); }
+
+        /* 内容区域 */
+        .content-section {
+            background: white;
+            border-radius: 10px;
+            padding: 1.25rem;
+            margin-bottom: 1rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        .section-title {
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: var(--gray-700);
+            margin-bottom: 0.75rem;
+            text-transform: uppercase;
+        }
+
+        .content-text {
+            white-space: pre-wrap;
+            font-size: 0.95rem;
+            line-height: 1.7;
+        }
+
+        /* 建议列表 */
+        .suggestions-list {
+            list-style: none;
+            padding: 0;
+        }
+
+        .suggestions-list li {
+            padding: 0.5rem 0.75rem;
+            margin: 0.25rem 0;
+            background: var(--gray-50);
+            border-radius: 6px;
+            font-size: 0.9rem;
+        }
+
+        .suggestions-list li::before {
+            content: '💡 ';
+        }
+
+        /* 人工审核表单 */
+        .review-form {
+            padding: 1rem;
+            background: var(--gray-50);
+            border-radius: 8px;
+            margin-top: 1rem;
+        }
+
+        .form-group { margin-bottom: 1rem; }
+
+        .form-group label {
+            display: block;
+            font-weight: 500;
+            margin-bottom: 0.5rem;
+        }
+
+        .form-group textarea,
+        .form-group select {
+            width: 100%;
+            padding: 0.625rem;
+            border: 1px solid var(--gray-300);
+            border-radius: 6px;
+            font-size: 0.9rem;
+        }
+
+        .form-actions {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+
+        /* 状态标签 */
+        .status-badge {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 999px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+
+        .status-completed { background: #d1fae5; color: #065f46; }
+        .status-failed { background: #fee2e2; color: #991b1b; }
+        .status-processing { background: var(--gray-200); color: var(--gray-700); }
+
+        /* Toast */
+        .toast {
+            position: fixed;
+            bottom: 1rem;
+            right: 1rem;
+            padding: 0.75rem 1.25rem;
+            border-radius: 8px;
+            color: white;
+            font-weight: 500;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            z-index: 2000;
+        }
+
+        .toast-success { background: var(--success); }
+        .toast-error { background: var(--danger); }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="header-content">
+            <h1>AnnSight 审核详情</h1>
+            <nav class="nav-tabs">
+                <a href="/" class="nav-tab">数据审核</a>
+                <a href="/raw-data.html" class="nav-tab">源数据</a>
+                <a href="/stats.html" class="nav-tab">统计</a>
+                <a href="/finetuning/list.html" class="nav-tab">微调任务</a>
+                <a href="/finetuning/task-detail.html?id=%s" class="nav-tab" id="taskLink">任务详情</a>
+            </nav>
+        </div>
+    </header>
+
+    <div class="container">
+        <div class="page-header">
+            <h2>数据审核详情</h2>
+            <a href="javascript:history.back()" class="btn btn-secondary">返回</a>
+        </div>
+
+        <!-- 数据基本信息 -->
+        <div id="dataInfo" class="content-section">
+            <div class="loading" style="text-align: center; padding: 2rem;">加载中...</div>
+        </div>
+
+        <!-- 审核轮次时间线 -->
+        <h3 style="margin-bottom: 1rem;">审核历史</h3>
+        <div id="timeline" class="timeline">
+            <div class="loading" style="text-align: center; padding: 2rem;">加载中...</div>
+        </div>
+
+        <!-- 人工审核表单 -->
+        <div id="manualReviewSection" class="content-section" style="display: none;">
+            <div class="section-title">人工审核</div>
+            <div class="review-form">
+                <div class="form-group">
+                    <label for="manualDecision">审核决策</label>
+                    <select id="manualDecision">
+                        <option value="approved">通过</option>
+                        <option value="rejected">拒绝</option>
+                        <option value="request_optimization">需要优化</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="manualReason">审核意见</label>
+                    <textarea id="manualReason" rows="3" placeholder="请说明审核意见..."></textarea>
+                </div>
+                <div class="form-actions">
+                    <button class="btn btn-success" onclick="submitManualReview('approved')">✓ 通过</button>
+                    <button class="btn btn-danger" onclick="submitManualReview('rejected')">✗ 拒绝</button>
+                    <button class="btn btn-warning" onclick="submitManualReview('request_optimization')">需要优化</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = '/api/finetuning';
+        const urlParams = new URLSearchParams(window.location.search);
+        const taskId = urlParams.get('id');
+        const dataId = urlParams.get('dataId');
+
+        if (!taskId || !dataId) {
+            alert('缺少参数');
+            window.location.href = '/finetuning/list.html';
+        }
+
+        // 更新任务详情链接
+        document.getElementById('taskLink').href = `/finetuning/task-detail.html?id=${taskId}`;
+
+        document.addEventListener('DOMContentLoaded', () => {
+            loadDataDetail();
+        });
+
+        async function loadDataDetail() {
+            try {
+                const response = await fetch(`${API_BASE}/task/${taskId}/data/${dataId}`);
+                const result = await response.json();
+
+                if (!result.success) throw new Error(result.error);
+
+                const data = result.data;
+                const rounds = result.review_rounds || [];
+
+                // 显示数据基本信息
+                document.getElementById('dataInfo').innerHTML = `
+                    <div class="section-title">数据基本信息</div>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem; margin-bottom: 1rem;">
+                        <div>
+                            <div style="font-size: 0.75rem; color: var(--gray-600);">类型</div>
+                            <div style="font-weight: 600;">${escapeHtml(data.type)}</div>
+                        </div>
+                        <div>
+                            <div style="font-size: 0.75rem; color: var(--gray-600);">分类</div>
+                            <div style="font-weight: 600;">${escapeHtml(data.category)}</div>
+                        </div>
+                        <div>
+                            <div style="font-size: 0.75rem; color: var(--gray-600);">状态</div>
+                            <span class="status-badge status-${data.review_status}">${data.review_status}</span>
+                        </div>
+                    </div>
+                    <div class="section-title">标题</div>
+                    <div class="content-text" style="margin-bottom: 1rem;">${escapeHtml(data.title)}</div>
+                    <div class="section-title">内容</div>
+                    <div class="content-text">${escapeHtml(data.content)}</div>
+                `;
+
+                // 显示审核历史
+                if (rounds.length === 0) {
+                    document.getElementById('timeline').innerHTML = `
+                        <div style="text-align: center; padding: 2rem; color: var(--gray-600);">
+                            暂无审核记录
+                        </div>
+                    `;
+                } else {
+                    document.getElementById('timeline').innerHTML = rounds.map((round, index) => `
+                        <div class="timeline-item ${round.round_type}">
+                            <div class="timeline-header">
+                                <span class="timeline-title">
+                                    ${getRoundTypeText(round.round_type)} - 第${round.round_number}轮
+                                </span>
+                                <span class="timeline-time">${new Date(round.created_at).toLocaleString('zh-CN')}</span>
+                            </div>
+                            ${renderRoundContent(round)}
+                        </div>
+                    `).join('');
+                }
+
+                // 判断是否需要人工审核
+                const latestRound = rounds[rounds.length - 1];
+                if (latestRound && latestRound.round_type === 'ai_review' && !latestRound.manual_reviewed) {
+                    document.getElementById('manualReviewSection').style.display = 'block';
+                }
+
+            } catch (error) {
+                console.error('加载详情失败:', error);
+                showToast('加载失败：' + error.message, 'error');
+            }
+        }
+
+        function renderRoundContent(round) {
+            const parts = [];
+
+            if (round.round_type === 'ai_review') {
+                // AI 审核
+                if (round.ai_score) {
+                    const scorePercent = (parseFloat(round.ai_score) * 100).toFixed(0);
+                    const scoreClass = parseFloat(round.ai_score) >= 0.9 ? 'score-high' : parseFloat(round.ai_score) >= 0.7 ? 'score-medium' : 'score-low';
+
+                    parts.push(`
+                        <div class="score-display">
+                            <div class="score-item">
+                                <div class="score-value ${scoreClass}">${scorePercent}分</div>
+                                <div class="score-label">综合评分</div>
+                            </div>
+                            ${round.ai_dimension_scores ? `
+                                <div class="score-item">
+                                    <div class="score-value" style="font-size: 1rem;">${(round.ai_dimension_scores.completeness * 100).toFixed(0)}</div>
+                                    <div class="score-label">完整性</div>
+                                </div>
+                                <div class="score-item">
+                                    <div class="score-value" style="font-size: 1rem;">${(round.ai_dimension_scores.instruction_following * 100).toFixed(0)}</div>
+                                    <div class="score-label">遵循度</div>
+                                </div>
+                                <div class="score-item">
+                                    <div class="score-value" style="font-size: 1rem;">${(round.ai_dimension_scores.output_quality * 100).toFixed(0)}</div>
+                                    <div class="score-label">质量</div>
+                                </div>
+                                <div class="score-item">
+                                    <div class="score-value" style="font-size: 1rem;">${(round.ai_dimension_scores.finetuning_suitability * 100).toFixed(0)}</div>
+                                    <div class="score-label">适用性</div>
+                                </div>
+                            ` : ''}
+                        </div>
+                    `);
+                }
+
+                if (round.ai_feedback) {
+                    parts.push(`
+                        <div class="section-title">AI 评价</div>
+                        <div class="content-text" style="margin-bottom: 0.75rem;">${escapeHtml(round.ai_feedback)}</div>
+                    `);
+                }
+
+                if (round.ai_suggestions && round.ai_suggestions.length > 0) {
+                    parts.push(`
+                        <div class="section-title">修改建议</div>
+                        <ul class="suggestions-list">
+                            ${round.ai_suggestions.map(s => `<li>${escapeHtml(s)}</li>`).join('')}
+                        </ul>
+                    `);
+                }
+
+                if (round.ai_passed !== null) {
+                    parts.push(`
+                        <div style="margin-top: 0.75rem;">
+                            <span class="status-badge ${round.ai_passed ? 'status-completed' : 'status-failed'}">
+                                ${round.ai_passed ? '✓ 通过' : '✗ 未通过'}
+                            </span>
+                        </div>
+                    `);
+                }
+
+            } else if (round.round_type === 'ai_optimize') {
+                // AI 优化
+                if (round.optimization_result) {
+                    const opt = round.optimization_result;
+                    parts.push(`
+                        ${opt.title ? `
+                            <div class="section-title">优化后标题</div>
+                            <div class="content-text" style="margin-bottom: 0.75rem;">${escapeHtml(opt.title)}</div>
+                        ` : ''}
+                        ${opt.content ? `
+                            <div class="section-title">优化后内容</div>
+                            <div class="content-text" style="margin-bottom: 0.75rem;">${escapeHtml(opt.content)}</div>
+                        ` : ''}
+                        ${opt.optimization_note ? `
+                            <div class="section-title">优化说明</div>
+                            <div class="content-text">${escapeHtml(opt.optimization_note)}</div>
+                        ` : ''}
+                    `);
+                }
+            } else if (round.round_type === 'manual_review') {
+                // 人工审核
+                if (round.manual_decision) {
+                    const decisionMap = {
+                        'approved': { text: '✓ 通过', class: 'status-completed' },
+                        'rejected': { text: '✗ 拒绝', class: 'status-failed' },
+                        'request_optimization': { text: '需要优化', class: 'status-processing' }
+                    };
+                    const decision = decisionMap[round.manual_decision];
+                    parts.push(`
+                        <div style="margin-bottom: 0.75rem;">
+                            <span class="status-badge ${decision.class}">${decision.text}</span>
+                        </div>
+                    `);
+                }
+                if (round.manual_reason) {
+                    parts.push(`
+                        <div class="section-title">审核意见</div>
+                        <div class="content-text">${escapeHtml(round.manual_reason)}</div>
+                    `);
+                }
+                if (round.manual_reviewer) {
+                    parts.push(`
+                        <div style="margin-top: 0.5rem; font-size: 0.85rem; color: var(--gray-600);">
+                            审核人：${round.manual_reviewer} | ${new Date(round.manual_reviewed_at).toLocaleString('zh-CN')}
+                        </div>
+                    `);
+                }
+            }
+
+            return parts.join('');
+        }
+
+        async function submitManualReview(decision) {
+            const reason = document.getElementById('manualReason').value;
+
+            if (!confirm(`确定要提交审核决策：${decision}？`)) return;
+
+            try {
+                const response = await fetch(`${API_BASE}/task/${taskId}/data/${dataId}/manual-review`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ decision, reason })
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    showToast('审核已提交');
+                    setTimeout(() => loadDataDetail(), 1000);
+                } else {
+                    throw new Error(result.error);
+                }
+
+            } catch (error) {
+                showToast('提交失败：' + error.message, 'error');
+            }
+        }
+
+        function getRoundTypeText(type) {
+            const map = {
+                'ai_review': 'AI 审核',
+                'ai_optimize': 'AI 优化',
+                'manual_review': '人工审核'
+            };
+            return map[type] || type;
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function showToast(message, type = 'success') {
+            const toast = document.createElement('div');
+            toast.className = `toast toast-${type}`;
+            toast.textContent = message;
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 3000);
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,728 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AnnSight - 微调任务管理</title>
+    <style>
+        :root {
+            --primary: #667eea;
+            --primary-dark: #5a67d8;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --gray-50: #f9fafb;
+            --gray-100: #f3f4f6;
+            --gray-200: #e5e7eb;
+            --gray-300: #d1d5db;
+            --gray-600: #4b5563;
+            --gray-700: #374151;
+            --gray-900: #111827;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--gray-100);
+            color: var(--gray-700);
+            line-height: 1.6;
+        }
+
+        /* 顶部导航 */
+        .header {
+            background: linear-gradient(135deg, var(--primary) 0%, #764ba2 100%);
+            color: white;
+            padding: 1rem 2rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .header-content {
+            max-width: 1600px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header h1 { font-size: 1.5rem; font-weight: 700; }
+
+        .nav-tabs { display: flex; gap: 0.5rem; }
+
+        .nav-tab {
+            padding: 0.5rem 1rem;
+            border: none;
+            background: rgba(255,255,255,0.1);
+            color: white;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            text-decoration: none;
+            transition: all 0.2s;
+        }
+
+        .nav-tab:hover { background: rgba(255,255,255,0.2); }
+        .nav-tab.active { background: white; color: var(--primary); }
+
+        /* 主容器 */
+        .container { max-width: 1600px; margin: 0 auto; padding: 1.5rem; }
+
+        /* 页面头部 */
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .page-header h2 { font-size: 1.5rem; color: var(--gray-900); }
+
+        .btn {
+            padding: 0.625rem 1.25rem;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: all 0.2s;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+        }
+
+        .btn-primary:hover { background: var(--primary-dark); }
+
+        .btn-success {
+            background: var(--success);
+            color: white;
+        }
+
+        .btn-warning {
+            background: var(--warning);
+            color: white;
+        }
+
+        .btn-danger {
+            background: var(--danger);
+            color: white;
+        }
+
+        .btn-sm { padding: 0.375rem 0.75rem; font-size: 0.85rem; }
+
+        /* 任务列表 */
+        .task-list {
+            display: grid;
+            gap: 1rem;
+        }
+
+        .task-card {
+            background: white;
+            border-radius: 10px;
+            padding: 1.25rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            transition: box-shadow 0.2s;
+        }
+
+        .task-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
+
+        .task-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 1rem;
+        }
+
+        .task-name {
+            font-size: 1.125rem;
+            font-weight: 600;
+            color: var(--gray-900);
+        }
+
+        .task-id {
+            font-size: 0.75rem;
+            color: var(--gray-600);
+            font-family: monospace;
+        }
+
+        .task-purpose {
+            color: var(--gray-600);
+            font-size: 0.9rem;
+            margin-bottom: 1rem;
+        }
+
+        /* 任务配置 */
+        .task-config {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 0.75rem;
+            margin-bottom: 1rem;
+            padding: 0.75rem;
+            background: var(--gray-50);
+            border-radius: 8px;
+        }
+
+        .config-item {
+            font-size: 0.85rem;
+        }
+
+        .config-item .label {
+            color: var(--gray-600);
+            font-size: 0.75rem;
+        }
+
+        .config-item .value {
+            font-weight: 500;
+            color: var(--gray-900);
+        }
+
+        /* 进度条 */
+        .progress-bar {
+            height: 8px;
+            background: var(--gray-200);
+            border-radius: 4px;
+            overflow: hidden;
+            margin-bottom: 0.75rem;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--primary), var(--success));
+            transition: width 0.3s;
+        }
+
+        /* 任务统计 */
+        .task-stats {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .stat-item {
+            text-align: center;
+            padding: 0.5rem;
+            background: var(--gray-50);
+            border-radius: 6px;
+        }
+
+        .stat-item .value {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--gray-900);
+        }
+
+        .stat-item .label {
+            font-size: 0.7rem;
+            color: var(--gray-600);
+            text-transform: uppercase;
+        }
+
+        /* 任务操作 */
+        .task-actions {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+
+        /* 状态标签 */
+        .status-badge {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 999px;
+            font-size: 0.75rem;
+            font-weight: 500;
+            text-transform: uppercase;
+        }
+
+        .status-pending { background: var(--gray-200); color: var(--gray-700); }
+        .status-importing { background: #dbeafe; color: #1e40af; }
+        .status-reviewing { background: #fef3c7; color: #92400e; }
+        .status-optimizing { background: #e0e7ff; color: #3730a3; }
+        .status-manual_review { background: #fce7f3; color: #9f1239; }
+        .status-completed { background: #d1fae5; color: #065f46; }
+        .status-exported { background: #ede9fe; color: #5b21b6; }
+
+        /* 模态框 */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-overlay.active { display: flex; }
+
+        .modal {
+            background: white;
+            border-radius: 12px;
+            padding: 1.5rem;
+            max-width: 600px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.25rem;
+        }
+
+        .modal-header h3 { font-size: 1.25rem; color: var(--gray-900); }
+
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: var(--gray-600);
+        }
+
+        .form-group { margin-bottom: 1rem; }
+
+        .form-group label {
+            display: block;
+            font-weight: 500;
+            margin-bottom: 0.5rem;
+            color: var(--gray-700);
+        }
+
+        .form-group input,
+        .form-group textarea,
+        .form-group select {
+            width: 100%;
+            padding: 0.625rem;
+            border: 1px solid var(--gray-300);
+            border-radius: 6px;
+            font-size: 0.9rem;
+        }
+
+        .form-group textarea { min-height: 80px; resize: vertical; }
+
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .checkbox-group input[type="checkbox"] {
+            width: auto;
+        }
+
+        .form-actions {
+            display: flex;
+            gap: 0.75rem;
+            justify-content: flex-end;
+            margin-top: 1.25rem;
+        }
+
+        /* 空状态 */
+        .empty-state {
+            text-align: center;
+            padding: 3rem;
+            color: var(--gray-600);
+        }
+
+        .empty-state p { margin-bottom: 1rem; }
+
+        /* 加载状态 */
+        .loading {
+            text-align: center;
+            padding: 2rem;
+            color: var(--gray-600);
+        }
+
+        /* 通知 */
+        .toast {
+            position: fixed;
+            bottom: 1rem;
+            right: 1rem;
+            padding: 0.75rem 1.25rem;
+            border-radius: 8px;
+            color: white;
+            font-weight: 500;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            z-index: 2000;
+            animation: slideIn 0.3s ease;
+        }
+
+        .toast-success { background: var(--success); }
+        .toast-error { background: var(--danger); }
+        .toast-warning { background: var(--warning); }
+
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+    </style>
+</head>
+<body>
+    <!-- 顶部导航 -->
+    <header class="header">
+        <div class="header-content">
+            <h1>AnnSight 微调任务</h1>
+            <nav class="nav-tabs">
+                <a href="/" class="nav-tab">数据审核</a>
+                <a href="/raw-data.html" class="nav-tab">源数据</a>
+                <a href="/stats.html" class="nav-tab">统计</a>
+                <a href="/spotcheck.html" class="nav-tab">抽检</a>
+                <a href="/finetuning/list.html" class="nav-tab active">微调任务</a>
+            </nav>
+        </div>
+    </header>
+
+    <!-- 主容器 -->
+    <div class="container">
+        <div class="page-header">
+            <h2>微调任务列表</h2>
+            <button class="btn btn-primary" onclick="showCreateModal()">+ 新建任务</button>
+        </div>
+
+        <div id="taskList" class="task-list">
+            <div class="loading">加载中...</div>
+        </div>
+    </div>
+
+    <!-- 创建任务模态框 -->
+    <div id="createModal" class="modal-overlay">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>新建微调任务</h3>
+                <button class="modal-close" onclick="closeCreateModal()">&times;</button>
+            </div>
+            <form id="createForm" onsubmit="createTask(event)">
+                <div class="form-group">
+                    <label for="taskName">任务名称 *</label>
+                    <input type="text" id="taskName" name="name" required placeholder="如：客服对话微调数据 -202603">
+                </div>
+                <div class="form-group">
+                    <label for="taskPurpose">微调目的说明</label>
+                    <textarea id="taskPurpose" name="purpose" placeholder="描述这批数据的微调目的，如：用于训练客服对话模型的问答能力..."></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="passThreshold">合格分值（0-1）</label>
+                    <input type="number" id="passThreshold" name="pass_threshold" step="0.01" min="0" max="1" value="0.90" placeholder="默认 0.90">
+                </div>
+                <div class="form-group">
+                    <label for="maxRounds">最多 AI 审核次数</label>
+                    <input type="number" id="maxRounds" name="max_review_rounds" min="1" max="5" value="2" placeholder="默认 2 次">
+                </div>
+                <div class="form-group">
+                    <label>
+                        <div class="checkbox-group">
+                            <input type="checkbox" id="manualReviewEnabled" name="manual_review_enabled" onchange="toggleManualScope()">
+                            <span>启用人工审核</span>
+                        </div>
+                    </label>
+                </div>
+                <div class="form-group" id="manualScopeGroup" style="display: none;">
+                    <label for="manualScope">人工审核范围</label>
+                    <select id="manualScope" name="manual_review_scope">
+                        <option value="failed">仅 AI 审核失败的数据</option>
+                        <option value="all">全量数据</option>
+                    </select>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn" onclick="closeCreateModal()">取消</button>
+                    <button type="submit" class="btn btn-primary">创建任务</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = '/api/finetuning';
+
+        // 页面加载时获取任务列表
+        document.addEventListener('DOMContentLoaded', loadTasks);
+
+        function toggleManualScope() {
+            const enabled = document.getElementById('manualReviewEnabled').checked;
+            document.getElementById('manualScopeGroup').style.display = enabled ? 'block' : 'none';
+        }
+
+        function showCreateModal() {
+            document.getElementById('createModal').classList.add('active');
+        }
+
+        function closeCreateModal() {
+            document.getElementById('createModal').classList.remove('active');
+            document.getElementById('createForm').reset();
+        }
+
+        async function loadTasks() {
+            try {
+                const response = await fetch(`${API_BASE}/task`);
+                const result = await response.json();
+
+                const taskList = document.getElementById('taskList');
+
+                if (!result.tasks || result.tasks.length === 0) {
+                    taskList.innerHTML = `
+                        <div class="empty-state">
+                            <p>暂无微调任务</p>
+                            <button class="btn btn-primary" onclick="showCreateModal()">创建第一个任务</button>
+                        </div>
+                    `;
+                    return;
+                }
+
+                taskList.innerHTML = result.tasks.map(task => `
+                    <div class="task-card">
+                        <div class="task-header">
+                            <div>
+                                <div class="task-name">${escapeHtml(task.name)}</div>
+                                <div class="task-id">${task.id}</div>
+                            </div>
+                            <span class="status-badge status-${task.status}">${getStatusText(task.status)}</span>
+                        </div>
+                        <div class="task-purpose">${escapeHtml(task.purpose || '无说明')}</div>
+                        <div class="task-config">
+                            <div class="config-item">
+                                <div class="label">合格分</div>
+                                <div class="value">${(parseFloat(task.pass_threshold) * 100).toFixed(0)}分</div>
+                            </div>
+                            <div class="config-item">
+                                <div class="label">最大轮次</div>
+                                <div class="value">${task.max_review_rounds}次</div>
+                            </div>
+                            <div class="config-item">
+                                <div class="label">人工审核</div>
+                                <div class="value">${task.manual_review_enabled ? '是' : '否'}</div>
+                            </div>
+                            <div class="config-item">
+                                <div class="label">平均分</div>
+                                <div class="value">${(parseFloat(task.stats?.avg_score || 0) * 100).toFixed(0)}分</div>
+                            </div>
+                        </div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" style="width: ${task.stats?.total_data > 0 ? (task.stats?.passed_data / task.stats?.total_data * 100) : 0}%"></div>
+                        </div>
+                        <div class="task-stats">
+                            <div class="stat-item">
+                                <div class="value">${task.stats?.total_data || 0}</div>
+                                <div class="label">总数</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="value" style="color: var(--success);">${task.stats?.passed_data || 0}</div>
+                                <div class="label">通过</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="value" style="color: var(--danger);">${task.stats?.failed_data || 0}</div>
+                                <div class="label">失败</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="value" style="color: var(--warning);">${task.stats?.optimized_data || 0}</div>
+                                <div class="label">优化</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="value">${task.stats?.manual_reviewed_data || 0}</div>
+                                <div class="label">人工</div>
+                            </div>
+                        </div>
+                        <div class="task-actions">
+                            <a href="/finetuning/task-detail.html?id=${task.id}" class="btn btn-sm btn-primary">查看详情</a>
+                            ${task.stats?.passed_data > 0 ? `
+                                <button class="btn btn-sm btn-success" onclick="exportTask('${task.id}', ${task.stats.passed_data})">导出 SFT 数据</button>
+                            ` : ''}
+                            ${task.status === 'pending' || task.status === 'importing' ? `
+                                <button class="btn btn-sm btn-success" onclick="startReview('${task.id}')">启动 AI 审核</button>
+                            ` : ''}
+                            ${task.status === 'reviewing' ? `
+                                <button class="btn btn-sm btn-warning" onclick="startOptimize('${task.id}')">启动 AI 优化</button>
+                            ` : ''}
+                            ${task.manual_review_enabled && (task.status === 'reviewing' || task.status === 'optimizing') ? `
+                                <button class="btn btn-sm btn-primary" onclick="startManualReview('${task.id}')">人工审核</button>
+                            ` : ''}
+                            ${task.status === 'completed' ? `
+                                <span class="btn btn-sm" style="cursor: not-allowed; background: #ccc;">已完成</span>
+                            ` : ''}
+                        </div>
+                    </div>
+                `).join('');
+
+            } catch (error) {
+                console.error('加载任务列表失败:', error);
+                showToast('加载失败：' + error.message, 'error');
+            }
+        }
+
+        async function createTask(event) {
+            event.preventDefault();
+
+            const formData = new FormData(event.target);
+            const data = {
+                name: formData.get('name'),
+                purpose: formData.get('purpose') || '',
+                pass_threshold: parseFloat(formData.get('pass_threshold')) || 0.90,
+                max_review_rounds: parseInt(formData.get('max_review_rounds')) || 2,
+                manual_review_enabled: formData.get('manual_review_enabled') === 'on',
+                manual_review_scope: formData.get('manual_review_scope') || 'failed'
+            };
+
+            try {
+                const response = await fetch(`${API_BASE}/task`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    showToast('任务创建成功，请导入数据');
+                    closeCreateModal();
+                    loadTasks();
+                    // 引导用户进入详情页导入数据
+                    setTimeout(() => {
+                        window.location.href = `/finetuning/task-detail.html?id=${result.task.id}`;
+                    }, 1000);
+                } else {
+                    throw new Error(result.error || '创建失败');
+                }
+
+            } catch (error) {
+                showToast('创建失败：' + error.message, 'error');
+            }
+        }
+
+        async function startReview(taskId) {
+            if (!confirm('确定要启动 AI 审核吗？这将调用 LLM API 对数据进行评分。')) return;
+
+            try {
+                const response = await fetch(`${API_BASE}/task/${taskId}/review/start`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    showToast(`AI 审核完成：通过 ${result.passed}, 失败 ${result.failed}`);
+                    loadTasks();
+                } else {
+                    throw new Error(result.error || '启动失败');
+                }
+
+            } catch (error) {
+                showToast('启动失败：' + error.message, 'error');
+            }
+        }
+
+        async function startOptimize(taskId) {
+            if (!confirm('确定要启动 AI 优化吗？这将根据审核意见自动修改数据。')) return;
+
+            try {
+                const response = await fetch(`${API_BASE}/task/${taskId}/optimize/start`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    showToast(`AI 优化完成：${result.optimized}/${result.total}`);
+                    loadTasks();
+                } else {
+                    throw new Error(result.error || '启动失败');
+                }
+
+            } catch (error) {
+                showToast('启动失败：' + error.message, 'error');
+            }
+        }
+
+        async function startManualReview(taskId) {
+            try {
+                const response = await fetch(`${API_BASE}/task/${taskId}/manual-review/start`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    showToast(`人工审核已启动：${result.count} 条数据`);
+                    window.location.href = `/finetuning/review.html?id=${taskId}`;
+                } else {
+                    throw new Error(result.error || '启动失败');
+                }
+
+            } catch (error) {
+                showToast('启动失败：' + error.message, 'error');
+            }
+        }
+
+        function getStatusText(status) {
+            const map = {
+                'pending': '待开始',
+                'importing': '导入中',
+                'reviewing': '审核中',
+                'optimizing': '优化中',
+                'manual_review': '人工审核',
+                'completed': '已完成',
+                'exported': '已导出'
+            };
+            return map[status] || status;
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function showToast(message, type = 'success') {
+            const toast = document.createElement('div');
+            toast.className = `toast toast-${type}`;
+            toast.textContent = message;
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 3000);
+        }
+
+        // 导出数据
+        async function exportTask(taskId, count) {
+            if (!confirm(`确定要导出 ${count} 条已审核通过的数据吗？\n\n将导出为 SFT 格式（带 <think> 思考标签）`)) {
+                return;
+            }
+
+            try {
+                showToast('正在导出...', 'success');
+
+                const response = await fetch(`${API_BASE}/task/${taskId}/export?format=sft`);
+                const result = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(result.error || '导出失败');
+                }
+
+                // 下载文件
+                const jsonlContent = result.data.join('\n');
+                const blob = new Blob([jsonlContent], { type: 'application/x-jsonlines' });
+                const url_download = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url_download;
+                a.download = `sft-export-${taskId}-${Date.now()}.jsonl`;
+                a.click();
+                URL.revokeObjectURL(url_download);
+
+                showToast(`导出成功：${result.count} 条数据`, 'success');
+
+            } catch (error) {
+                showToast('导出失败：' + error.message, 'error');
+            }
+        }
+    </script>
+</body>
+</html>

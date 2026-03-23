@@ -152,12 +152,24 @@ class EtlService {
     async saveProcessedData(context) {
         const { purposes } = context;
 
+        console.log('[ETL] saveProcessedData called with:', {
+            batchId: context.batchId,
+            source: context.source,
+            itemsCount: context.items?.length
+        });
+
         // 检查是否有裂变数据（items 数组）
         if (context.items && Array.isArray(context.items) && context.items.length > 0) {
             // 裂变模式：保存多条
             const processedDataIds = [];
 
             for (const item of context.items) {
+                console.log('[ETL] saveProcessedData item:', {
+                    batchId: item.batchId,
+                    hasType: !!item.type,
+                    hasTitle: !!item.title
+                });
+
                 const id = await this._saveSingleProcessedData({
                     ...context,
                     ...item,
@@ -193,35 +205,55 @@ class EtlService {
             conversation,
             qualityScore,
             aiConfidenceScore,
-            aiModelVersion
+            aiModelVersion,
+            source,
+            batchId
         } = context;
+
+        // 调试日志
+        console.log('[ETL] _saveSingleProcessedData:', { batchId, source, title: title?.slice(0, 30) });
 
         // 计算冷却期（默认 24 小时）
         const coolingHours = 24;
         const coolingUntil = new Date(Date.now() + coolingHours * 60 * 60 * 1000);
 
-        const processedData = await this.repo.create({
-            id: `pd-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-            rawDataId,
-            type,
-            category,
-            subcategory,
-            target_user: targetUser,
-            title,
-            content,
-            tags,
-            conversation,
-            completeness_score: context.completenessScore,
-            authenticity_score: context.authenticityScore,
-            quality_score: qualityScore,
-            quality_note: context.qualityNote,
-            ai_confidence_score: aiConfidenceScore,
-            ai_model_version: aiModelVersion,
-            cooling_hours: coolingHours,
-            cooling_until: coolingUntil
-        });
+        try {
+            const processedData = await this.repo.create({
+                id: `pd-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+                rawDataId,
+                type,
+                category,
+                subcategory,
+                target_user: targetUser,
+                title,
+                content,
+                tags,
+                conversation,
+                completeness_score: context.completenessScore,
+                authenticity_score: context.authenticityScore,
+                quality_score: qualityScore,
+                quality_note: context.qualityNote,
+                ai_confidence_score: aiConfidenceScore,
+                ai_model_version: aiModelVersion,
+                cooling_hours: coolingHours,
+                cooling_until: coolingUntil,
+                source,
+                batchId,  // 使用驼峰命名，与 repo.create 的解构匹配
+                purposes: context.purposes
+            });
 
-        return processedData.id;
+            console.log('[ETL] ✅ Saved:', processedData.id, 'batch:', processedData.batch_id);
+
+            // 立即验证数据库中的值
+            const verifyResult = await this.pool.query('SELECT batch_id FROM processed_data WHERE id = $1', [processedData.id]);
+            const verifyRow = verifyResult.rows[0];
+            console.log('[ETL] 🔍 DB verify:', { id: processedData.id, batch_id: verifyRow?.batch_id });
+
+            return processedData.id;
+        } catch (error) {
+            console.error('[ETL] ❌ Save failed:', error.message);
+            throw error;
+        }
     }
 
     /**
@@ -246,12 +278,21 @@ class EtlService {
             const pipeline = this.pipelineFactory.create(pipelineConfig, processors);
 
             // 执行 Pipeline
-            const result = await pipeline.execute({
+            const initialContext = {
                 rawText: text,
                 sourceType: metadata.source || 'upload',
                 batchId: metadata.batchId || 'manual',
-                purposes: purposes || ['rag'], // 默认只生成 RAG 数据
-                fissionConfig // 传递裂变配置到上下文
+                purposes: purposes || ['rag'],
+                fissionConfig
+            };
+            console.log('[ETL] processText initialContext:', { batchId: initialContext.batchId, source: initialContext.sourceType });
+
+            const result = await pipeline.execute(initialContext);
+
+            console.log('[ETL] processText result.context:', {
+                batchId: result.context?.batchId,
+                source: result.context?.source,
+                itemsCount: result.context?.items?.length
             });
 
             // 检查是否重复

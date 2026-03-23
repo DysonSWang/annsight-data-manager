@@ -26,7 +26,7 @@ class L25FissionProcessor extends BaseProcessor {
     }
 
     async process(context) {
-        const { cleanedText, sourceType, purposes: contextPurposes, fissionConfig } = context;
+        const { cleanedText, sourceType, purposes: contextPurposes, fissionConfig, batchId, source } = context;
 
         if (!cleanedText) {
             throw new Error('没有可处理的文本内容');
@@ -49,7 +49,9 @@ class L25FissionProcessor extends BaseProcessor {
         const enhancedItems = (fissionResult.items || []).map(item => ({
             ...item,
             // 如果 item 没有 purposes，使用配置的 purposes
-            purposes: item.purposes || purposes
+            purposes: item.purposes || purposes,
+            batchId,
+            source: source || sourceType
         }));
 
         return {

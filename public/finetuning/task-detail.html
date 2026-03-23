@@ -1,0 +1,821 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AnnSight - 任务详情</title>
+    <style>
+        :root {
+            --primary: #667eea;
+            --primary-dark: #5a67d8;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --gray-50: #f9fafb;
+            --gray-100: #f3f4f6;
+            --gray-200: #e5e7eb;
+            --gray-300: #d1d5db;
+            --gray-600: #4b5563;
+            --gray-700: #374151;
+            --gray-900: #111827;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--gray-100);
+            color: var(--gray-700);
+            line-height: 1.6;
+        }
+
+        .header {
+            background: linear-gradient(135deg, var(--primary) 0%, #764ba2 100%);
+            color: white;
+            padding: 1rem 2rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .header-content {
+            max-width: 1600px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header h1 { font-size: 1.5rem; font-weight: 700; }
+
+        .nav-tabs { display: flex; gap: 0.5rem; }
+
+        .nav-tab {
+            padding: 0.5rem 1rem;
+            border: none;
+            background: rgba(255,255,255,0.1);
+            color: white;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            text-decoration: none;
+            transition: all 0.2s;
+        }
+
+        .nav-tab:hover { background: rgba(255,255,255,0.2); }
+        .nav-tab.active { background: white; color: var(--primary); }
+
+        .container { max-width: 1600px; margin: 0 auto; padding: 1.5rem; }
+
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .page-header h2 { font-size: 1.5rem; color: var(--gray-900); }
+
+        .btn {
+            padding: 0.625rem 1.25rem;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: all 0.2s;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-primary:hover { background: var(--primary-dark); }
+        .btn-success { background: var(--success); color: white; }
+        .btn-warning { background: var(--warning); color: white; }
+        .btn-secondary { background: var(--gray-600); color: white; }
+        .btn-sm { padding: 0.375rem 0.75rem; font-size: 0.85rem; }
+
+        /* 任务信息卡片 */
+        .task-info {
+            background: white;
+            border-radius: 10px;
+            padding: 1.25rem;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        .task-meta {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-top: 1rem;
+            padding-top: 1rem;
+            border-top: 1px solid var(--gray-200);
+        }
+
+        .meta-item .label {
+            font-size: 0.75rem;
+            color: var(--gray-600);
+            text-transform: uppercase;
+        }
+
+        .meta-item .value {
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--gray-900);
+        }
+
+        /* 统计卡片 */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 1.25rem;
+            border-radius: 10px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+
+        .stat-card .value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--gray-900);
+        }
+
+        .stat-card .label {
+            font-size: 0.875rem;
+            color: var(--gray-600);
+            margin-top: 0.25rem;
+        }
+
+        /* 数据表格 */
+        .data-table {
+            background: white;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        .table-header {
+            padding: 1rem 1.25rem;
+            border-bottom: 1px solid var(--gray-200);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .table-header h3 { font-size: 1.125rem; color: var(--gray-900); }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th, td {
+            padding: 0.75rem 1.25rem;
+            text-align: left;
+            border-bottom: 1px solid var(--gray-200);
+        }
+
+        th {
+            background: var(--gray-50);
+            font-weight: 600;
+            color: var(--gray-700);
+            font-size: 0.85rem;
+        }
+
+        tr:hover { background: var(--gray-50); }
+
+        .status-badge {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 999px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+
+        .status-approved { background: #d1fae5; color: #065f46; }
+        .status-rejected { background: #fee2e2; color: #991b1b; }
+        .status-pending { background: var(--gray-200); color: var(--gray-700); }
+        .status-optimizing { background: #fef3c7; color: #92400e; }
+
+        .score {
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        .score-high { color: var(--success); }
+        .score-medium { color: var(--warning); }
+        .score-low { color: var(--danger); }
+
+        .pagination {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem 1.25rem;
+        }
+
+        .page-btn {
+            padding: 0.375rem 0.75rem;
+            border: 1px solid var(--gray-300);
+            background: white;
+            border-radius: 6px;
+            cursor: pointer;
+            margin: 0 0.25rem;
+        }
+
+        .page-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* 加载状态 */
+        .loading {
+            text-align: center;
+            padding: 3rem;
+            color: var(--gray-600);
+        }
+
+        /* Toast */
+        .toast {
+            position: fixed;
+            bottom: 1rem;
+            right: 1rem;
+            padding: 0.75rem 1.25rem;
+            border-radius: 8px;
+            color: white;
+            font-weight: 500;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            z-index: 2000;
+        }
+
+        .toast-success { background: var(--success); }
+        .toast-error { background: var(--danger); }
+
+        /* 导出模态框 */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+        }
+
+        .modal {
+            background: white;
+            border-radius: 12px;
+            padding: 1.5rem;
+            max-width: 500px;
+            width: 90%;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+
+        .modal-header h3 {
+            font-size: 1.25rem;
+            color: var(--gray-900);
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: var(--gray-600);
+        }
+
+        .modal-body {
+            margin-bottom: 1rem;
+        }
+
+        .form-group {
+            margin-bottom: 1rem;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+            color: var(--gray-700);
+        }
+
+        .form-group select,
+        .form-group input {
+            width: 100%;
+            padding: 0.5rem;
+            border: 1px solid var(--gray-300);
+            border-radius: 6px;
+            font-size: 0.9rem;
+        }
+
+        .modal-footer {
+            display: flex;
+            justify-content: flex-end;
+            gap: 0.5rem;
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="header-content">
+            <h1>AnnSight 微调任务</h1>
+            <nav class="nav-tabs">
+                <a href="/" class="nav-tab">数据审核</a>
+                <a href="/raw-data.html" class="nav-tab">源数据</a>
+                <a href="/stats.html" class="nav-tab">统计</a>
+                <a href="/finetuning/list.html" class="nav-tab">微调任务</a>
+            </nav>
+        </div>
+    </header>
+
+    <div class="container">
+        <div class="page-header">
+            <h2 id="taskName">任务详情</h2>
+            <div>
+                <a href="/finetuning/list.html" class="btn btn-secondary">返回列表</a>
+                <button id="btnImportData" class="btn btn-success" onclick="showImportModal()" style="display: none;">导入数据</button>
+                <button id="btnExport" class="btn btn-primary" onclick="showExportModal()" style="display: none;">导出 SFT 数据</button>
+                <button id="btnStartReview" class="btn btn-success" onclick="startReview()" style="display: none;">启动 AI 审核</button>
+                <button id="btnStartOptimize" class="btn btn-warning" onclick="startOptimize()" style="display: none;">启动 AI 优化</button>
+                <button id="btnManualReview" class="btn btn-primary" onclick="goToManualReview()" style="display: none;">人工审核</button>
+            </div>
+        </div>
+
+        <!-- 任务信息 -->
+        <div id="taskInfo" class="task-info">
+            <div class="loading">加载中...</div>
+        </div>
+
+        <!-- 统计卡片 -->
+        <div id="statsGrid" class="stats-grid"></div>
+
+        <!-- 数据列表 -->
+        <div class="data-table">
+            <div class="table-header">
+                <h3>数据列表</h3>
+                <div>
+                    <select id="statusFilter" onchange="loadData()" style="padding: 0.5rem; border-radius: 6px; border: 1px solid var(--gray-300);">
+                        <option value="">全部状态</option>
+                        <option value="pending">待审核</option>
+                        <option value="approved">已通过</option>
+                        <option value="rejected">已拒绝</option>
+                    </select>
+                </div>
+            </div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>类型</th>
+                        <th>分类</th>
+                        <th>标题</th>
+                        <th>AI 评分</th>
+                        <th>状态</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody id="dataBody">
+                    <tr><td colspan="7" class="loading">加载中...</td></tr>
+                </tbody>
+            </table>
+            <div class="pagination" id="pagination"></div>
+        </div>
+    </div>
+
+    <!-- 导入模态框 -->
+    <div id="importModal" class="modal-overlay">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>导入数据</h3>
+                <button class="modal-close" onclick="closeImportModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="sourceBatch">源数据批次</label>
+                    <select id="sourceBatch">
+                        <option value="">请选择源数据批次</option>
+                    </select>
+                </div>
+                <div style="background: var(--gray-100); padding: 1rem; border-radius: 8px; margin-top: 1rem;">
+                    <p style="font-size: 0.85rem; color: var(--gray-600);">
+                        <strong>提示：</strong>数据将被关联到当前任务，然后可以启动 AI 审核流程。
+                    </p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeImportModal()">取消</button>
+                <button class="btn btn-success" onclick="importData()">导入</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 导出模态框 -->
+    <div id="exportModal" class="modal-overlay">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>导出数据</h3>
+                <button class="modal-close" onclick="closeExportModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>导出格式</label>
+                    <select id="exportFormat">
+                        <option value="sft">SFT 格式（带 <think> 思考标签）</option>
+                        <option value="messages">Messages 格式（标准对话）</option>
+                        <option value="instruction">Instruction 格式（指令 - 输入 - 输出）</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>数据范围</label>
+                    <select id="exportScope">
+                        <option value="all">全部已审核通过的数据</option>
+                        <option value="passed">仅已通过（AI 审核 ≥ 合格线）</option>
+                    </select>
+                </div>
+                <div style="background: var(--gray-100); padding: 1rem; border-radius: 8px; margin-top: 1rem;">
+                    <p style="font-size: 0.85rem; color: var(--gray-600);">
+                        <strong>提示：</strong>导出会自动标记已导出数据，便于后续追踪。
+                    </p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeExportModal()">取消</button>
+                <button class="btn btn-primary" onclick="exportData()">导出</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = '/api/finetuning';
+        const urlParams = new URLSearchParams(window.location.search);
+        const taskId = urlParams.get('id');
+        let currentPage = 1;
+        let currentTask = null;
+
+        if (!taskId) {
+            alert('缺少任务 ID');
+            window.location.href = '/finetuning/list.html';
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            loadTaskInfo();
+            loadData();
+        });
+
+        async function loadTaskInfo() {
+            try {
+                const response = await fetch(`${API_BASE}/task/${taskId}`);
+                const result = await response.json();
+
+                if (!result.success) throw new Error(result.error);
+
+                currentTask = result.task;
+                document.getElementById('taskName').textContent = result.task.name;
+
+                document.getElementById('taskInfo').innerHTML = `
+                    <div style="margin-bottom: 1rem;">
+                        <strong>微调目的:</strong>
+                        <p style="color: var(--gray-600); margin-top: 0.5rem;">${escapeHtml(result.task.purpose || '无说明')}</p>
+                    </div>
+                    <div class="task-meta">
+                        <div class="meta-item">
+                            <div class="label">任务 ID</div>
+                            <div class="value" style="font-family: monospace;">${result.task.id}</div>
+                        </div>
+                        <div class="meta-item">
+                            <div class="label">合格分值</div>
+                            <div class="value">${(parseFloat(result.task.pass_threshold) * 100).toFixed(0)}分</div>
+                        </div>
+                        <div class="meta-item">
+                            <div class="label">最大审核轮次</div>
+                            <div class="value">${result.task.max_review_rounds}次</div>
+                        </div>
+                        <div class="meta-item">
+                            <div class="label">人工审核</div>
+                            <div class="value">${result.task.manual_review_enabled ? '启用 (' + result.task.manual_review_scope + ')' : '未启用'}</div>
+                        </div>
+                        <div class="meta-item">
+                            <div class="label">状态</div>
+                            <div class="value"><span class="status-badge status-${result.task.status}">${getStatusText(result.task.status)}</span></div>
+                        </div>
+                        <div class="meta-item">
+                            <div class="label">创建时间</div>
+                            <div class="value">${new Date(result.task.created_at).toLocaleString('zh-CN')}</div>
+                        </div>
+                    </div>
+                `;
+
+                document.getElementById('statsGrid').innerHTML = `
+                    <div class="stat-card">
+                        <div class="value">${result.stats.total_data || 0}</div>
+                        <div class="label">总数据量</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="value" style="color: var(--success);">${result.stats.passed_data || 0}</div>
+                        <div class="label">已通过</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="value" style="color: var(--danger);">${result.stats.failed_data || 0}</div>
+                        <div class="label">未通过</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="value" style="color: var(--warning);">${result.stats.optimized_data || 0}</div>
+                        <div class="label">已优化</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="value">${result.stats.manual_reviewed_data || 0}</div>
+                        <div class="label">人工审核</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="value">${(parseFloat(result.stats.avg_score) * 100).toFixed(0)}分</div>
+                        <div class="label">平均评分</div>
+                    </div>
+                `;
+
+                // 根据状态显示操作按钮
+                updateActionButtons(result.task.status);
+
+            } catch (error) {
+                console.error('加载任务信息失败:', error);
+                showToast('加载失败：' + error.message, 'error');
+            }
+        }
+
+        function updateActionButtons(status) {
+            const btnImport = document.getElementById('btnImportData');
+            const btnReview = document.getElementById('btnStartReview');
+            const btnOptimize = document.getElementById('btnStartOptimize');
+            const btnManual = document.getElementById('btnManualReview');
+            const btnExport = document.getElementById('btnExport');
+
+            // pending 或 importing 状态显示导入按钮
+            btnImport.style.display = (status === 'pending' || status === 'importing') ? 'inline-block' : 'none';
+            btnReview.style.display = (status === 'pending' || status === 'importing') ? 'inline-block' : 'none';
+            btnOptimize.style.display = status === 'reviewing' ? 'inline-block' : 'none';
+            btnManual.style.display = (currentTask?.manual_review_enabled && (status === 'reviewing' || status === 'optimizing')) ? 'inline-block' : 'none';
+            // 有已通过的数据就显示导出按钮
+            btnExport.style.display = (currentTask && currentTask.stats && currentTask.stats.passed_data > 0) ? 'inline-block' : 'none';
+        }
+
+        async function loadData() {
+            const status = document.getElementById('statusFilter').value;
+            let url = `${API_BASE}/task/${taskId}/data?page=${currentPage}&pageSize=20`;
+            if (status) url += `&status=${status}`;
+
+            try {
+                const response = await fetch(url);
+                const result = await response.json();
+
+                const tbody = document.getElementById('dataBody');
+
+                if (!result.data || result.data.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="7" class="loading">暂无数据</td></tr>';
+                    document.getElementById('pagination').innerHTML = '';
+                    return;
+                }
+
+                tbody.innerHTML = result.data.map(data => {
+                    const score = parseFloat(data.max_ai_score);
+                    const scoreClass = score >= 0.9 ? 'score-high' : score >= 0.7 ? 'score-medium' : 'score-low';
+                    const scoreText = data.max_ai_score ? (score * 100).toFixed(0) + '分' : '-';
+
+                    return `
+                        <tr>
+                            <td style="font-family: monospace; font-size: 0.85rem;">${data.id.slice(-8)}</td>
+                            <td>${escapeHtml(data.type)}</td>
+                            <td>${escapeHtml(data.category)}</td>
+                            <td>${escapeHtml(data.title?.slice(0, 50) || '-')}</td>
+                            <td><span class="score ${scoreClass}">${scoreText}</span></td>
+                            <td><span class="status-badge status-${data.review_status}">${getStatusText(data.review_status)}</span></td>
+                            <td>
+                                <a href="/finetuning/review.html?id=${taskId}&dataId=${data.id}" class="btn btn-sm btn-secondary">详情</a>
+                            </td>
+                        </tr>
+                    `;
+                }).join('');
+
+                // 分页
+                document.getElementById('pagination').innerHTML = `
+                    <span>第 ${result.pagination.page} / ${result.pagination.totalPages || 1} 页，共 ${result.pagination.total} 条</span>
+                    <div>
+                        <button class="page-btn" onclick="changePage(${currentPage - 1})" ${currentPage <= 1 ? 'disabled' : ''}>上一页</button>
+                        <button class="page-btn" onclick="changePage(${currentPage + 1})" ${currentPage >= result.pagination.totalPages ? 'disabled' : ''}>下一页</button>
+                    </div>
+                `;
+
+            } catch (error) {
+                console.error('加载数据失败:', error);
+                showToast('加载失败：' + error.message, 'error');
+            }
+        }
+
+        function changePage(newPage) {
+            if (newPage < 1) return;
+            currentPage = newPage;
+            loadData();
+        }
+
+        async function startReview() {
+            if (!confirm('确定要启动 AI 审核吗？')) return;
+
+            try {
+                const response = await fetch(`${API_BASE}/task/${taskId}/review/start`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                const result = await response.json();
+
+                if (response.ok) {
+                    showToast(`AI 审核完成：通过 ${result.passed}, 失败 ${result.failed}`);
+                    setTimeout(() => loadTaskInfo(), 1000);
+                } else {
+                    throw new Error(result.error);
+                }
+            } catch (error) {
+                showToast('启动失败：' + error.message, 'error');
+            }
+        }
+
+        async function startOptimize() {
+            if (!confirm('确定要启动 AI 优化吗？')) return;
+
+            try {
+                const response = await fetch(`${API_BASE}/task/${taskId}/optimize/start`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                const result = await response.json();
+
+                if (response.ok) {
+                    showToast(`AI 优化完成：${result.optimized}/${result.total}`);
+                    setTimeout(() => loadTaskInfo(), 1000);
+                } else {
+                    throw new Error(result.error);
+                }
+            } catch (error) {
+                showToast('启动失败：' + error.message, 'error');
+            }
+        }
+
+        function goToManualReview() {
+            window.location.href = `/finetuning/review.html?id=${taskId}`;
+        }
+
+        function getStatusText(status) {
+            const map = {
+                'pending': '待审核',
+                'approved': '已通过',
+                'rejected': '已拒绝',
+                'optimizing': '优化中',
+                'reviewing': '审核中'
+            };
+            return map[status] || status;
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function showToast(message, type = 'success') {
+            const toast = document.createElement('div');
+            toast.className = `toast toast-${type}`;
+            toast.textContent = message;
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 3000);
+        }
+
+        // 导出功能
+        function showExportModal() {
+            document.getElementById('exportModal').classList.add('active');
+        }
+
+        function closeExportModal() {
+            document.getElementById('exportModal').classList.remove('active');
+        }
+
+        // 导入功能
+        async function showImportModal() {
+            // 加载批次列表
+            await loadBatchList();
+            document.getElementById('importModal').classList.add('active');
+        }
+
+        function closeImportModal() {
+            document.getElementById('importModal').classList.remove('active');
+        }
+
+        async function loadBatchList() {
+            try {
+                const response = await fetch('/api/raw-data/batches');
+                const result = await response.json();
+
+                const select = document.getElementById('sourceBatch');
+                select.innerHTML = '<option value="">请选择源数据批次</option>';
+
+                if (result.batches && result.batches.length > 0) {
+                    result.batches.forEach(batch => {
+                        const option = document.createElement('option');
+                        option.value = batch.batch_id;
+                        option.textContent = `${batch.batch_id} (${batch.count}条数据)`;
+                        select.appendChild(option);
+                    });
+                }
+            } catch (error) {
+                console.error('加载批次列表失败:', error);
+            }
+        }
+
+        async function importData() {
+            const sourceBatchId = document.getElementById('sourceBatch').value;
+
+            if (!sourceBatchId) {
+                showToast('请选择源数据批次', 'warning');
+                return;
+            }
+
+            try {
+                showToast('正在导入数据...', 'success');
+
+                const response = await fetch(`${API_BASE}/task/${taskId}/import`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ source_batch_id: sourceBatchId })
+                });
+
+                const result = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(result.error || '导入失败');
+                }
+
+                showToast(`导入成功：${result.count} 条数据`, 'success');
+                closeImportModal();
+
+                // 刷新任务信息
+                setTimeout(() => loadTaskInfo(), 1000);
+
+            } catch (error) {
+                showToast('导入失败：' + error.message, 'error');
+            }
+        }
+
+        async function exportData() {
+            const format = document.getElementById('exportFormat').value;
+            const scope = document.getElementById('exportScope').value;
+
+            try {
+                showToast('正在导出数据...', 'success');
+
+                let url = `${API_BASE}/task/${taskId}/export?format=${format}`;
+                if (scope === 'passed') {
+                    // 只导出已通过的数据
+                    url += `&status=approved`;
+                }
+
+                const response = await fetch(url);
+                const result = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(result.error || '导出失败');
+                }
+
+                // 下载文件
+                const jsonlContent = result.data.join('\n');
+                const blob = new Blob([jsonlContent], { type: 'application/x-jsonlines' });
+                const url_download = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url_download;
+                a.download = `sft-export-${taskId}-${Date.now()}.jsonl`;
+                a.click();
+                URL.revokeObjectURL(url_download);
+
+                showToast(`导出成功：${result.count} 条数据`, 'success');
+                closeExportModal();
+
+            } catch (error) {
+                showToast('导出失败：' + error.message, 'error');
+            }
+        }
+    </script>
+</body>
+</html>

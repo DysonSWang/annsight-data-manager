@@ -18,7 +18,7 @@ class L2StructureProcessor extends BaseProcessor {
     }
 
     async process(context) {
-        const { cleanedText, sourceType, items, purposes } = context;
+        const { cleanedText, sourceType, items, purposes, batchId, source } = context;
 
         // 如果裂变已经产生了 items，直接使用裂变结果
         // 裂变处理器已经包含了 type, category, title, content 等字段
@@ -28,7 +28,9 @@ class L2StructureProcessor extends BaseProcessor {
                 ...item,
                 aiConfidenceScore: item.aiConfidenceScore || 0.8,
                 aiModelVersion: item.aiModelVersion || 'fission-v1.0',
-                structureNote: item.structureNote || '裂变生成'
+                structureNote: item.structureNote || '裂变生成',
+                batchId,
+                source: source || sourceType
             }));
 
             // 返回第一条作为当前上下文（后续会通过 saveProcessedData 的 items 数组处理所有）
@@ -64,7 +66,10 @@ class L2StructureProcessor extends BaseProcessor {
             conversation: structured.conversation || null,
             aiConfidenceScore: structured.confidence || 0.5,
             aiModelVersion: structured.model_version || 'v1.0',
-            structureNote: structured.reasoning || ''
+            structureNote: structured.reasoning || '',
+            // 传递批次和来源信息
+            batchId,
+            source: source || sourceType
         };
     }
 

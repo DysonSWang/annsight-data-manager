@@ -54,6 +54,8 @@ class ProcessedDataRepository {
             purposes // 新增：用途列表 ['rag', 'finetuning', 'content_creation']
         } = data;
 
+        console.log('[Repo] create called with batchId:', batchId, 'source:', source);
+
         // 验证必填字段
         // 注意：rawDataId 可以为 null（直接上传的文本）
         if (!id || !type || !category || !title || !content) {
@@ -73,7 +75,7 @@ class ProcessedDataRepository {
             RETURNING *
         `;
 
-        const result = await this.pool.query(query, [
+        const params = [
             id,
             rawDataId,
             collectionName,
@@ -96,7 +98,13 @@ class ProcessedDataRepository {
             source || null,
             batchId || null,
             purposes ? (Array.isArray(purposes) ? purposes.join(',') : purposes) : null
-        ]);
+        ];
+
+        console.log('[Repo] params[20] (batch_id):', params[20]);
+
+        const result = await this.pool.query(query, params);
+
+        console.log('[Repo] result.rows[0].batch_id:', result.rows[0]?.batch_id);
 
         return result.rows[0];
     }

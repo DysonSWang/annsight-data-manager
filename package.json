@@ -13,6 +13,7 @@
     "test:watch": "NODE_ENV=test jest --watch",
     "test:uat": "node tests/uat/test-etl-pipeline-uat.js",
     "test:full-uat": "node tests/uat/test-full-pipeline-uat.js",
+    "test:finetuning": "node tests/uat/test-finetuning-workflow-uat.js",
     "db:migrate": "node scripts/migrate.js",
     "db:reset": "NODE_ENV=test node scripts/migrate.js --reset",
     "lint": "eslint src/ tests/"

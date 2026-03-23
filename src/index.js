@@ -60,6 +60,10 @@ app.use('/api/etl', etlRoutes);
 const rawDataRoutes = require('./routes/raw-data');
 app.use('/api/raw-data', rawDataRoutes);
 
+// 微调任务路由
+const finetuningRoutes = require('./routes/finetuning');
+app.use('/api/finetuning', finetuningRoutes);
+
 // 健康检查
 app.get('/api/health', (req, res) => {
     res.json({ status: 'ok', timestamp: new Date().toISOString() });

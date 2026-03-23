@@ -3,19 +3,28 @@ const ProcessedDataRepository = require('../repository/ProcessedDataRepository')
 /**
  * 微调数据导出服务
  * 负责将审核通过的数据导出为阿里百炼微调数据集格式 (JSONL)
+ * 支持两种格式：
+ * 1. SFT 格式：包含 system + 多轮 user/assistant(含<think>思考) 对话
+ * 2. 标准 messages 格式：多轮对话
  */
 class FinetuningExportService {
     constructor(pool) {
         this.pool = pool;
         this.repo = new ProcessedDataRepository(pool);
+        // SFT 格式配置
+        this.sftConfig = {
+            systemPrompt: 'You are a helpful assistant.',
+            thinkingTag: true  // 是否启用<think>思考标签
+        };
     }
 
     /**
      * 导出为 JSONL 格式
      * @param {string[]} dataIds - 数据 ID 列表，为空则导出所有已审核数据
+     * @param {string} format - 导出格式：'sft' (带思考标签) | 'messages' (标准对话) | 'instruction' (指令)
      * @returns {Promise<Object>} JSONL 行数和内容
      */
-    async exportToJsonl(dataIds = null) {
+    async exportToJsonl(dataIds = null, format = 'sft') {
         let data;
 
         if (dataIds) {
@@ -29,11 +38,12 @@ class FinetuningExportService {
         for (const item of data) {
             let jsonLine;
 
-            // 如果有对话数据，使用 messages 格式 (适用于多轮对话微调)
-            if (item.conversation && Array.isArray(item.conversation) && item.conversation.length > 0) {
+            // 根据指定格式选择转换器
+            if (format === 'sft') {
+                jsonLine = this.formatAsSFT(item);
+            } else if (item.conversation && Array.isArray(item.conversation) && item.conversation.length > 0) {
                 jsonLine = this.formatAsMessages(item);
             } else {
-                // 否则使用 instruction-input-output 格式
                 jsonLine = this.formatAsInstruction(item);
             }
 
@@ -74,6 +84,116 @@ class FinetuningExportService {
                 source: data.source
             }
         };
+    }
+
+    /**
+     * 格式化为 SFT 格式（带<think>思考标签的多轮对话）
+     * 参考格式：
+     * {"messages":[{"role": "system", "content": "You are a helpful assistant."},
+     *              {"role":"user","content":"你好"},
+     *              {"role":"assistant","content":"<think>\n用户思考内容\n</think>\n\n实际回复内容"}]}
+     * @param {Object} data - 数据对象
+     * @returns {Object} SFT 格式
+     */
+    formatAsSFT(data) {
+        const messages = [];
+
+        // 1. 添加系统提示
+        messages.push({
+            role: 'system',
+            content: this.sftConfig.systemPrompt
+        });
+
+        // 2. 处理对话数据
+        if (data.conversation && Array.isArray(data.conversation) && data.conversation.length > 0) {
+            // 有对话数据：转换为多轮对话格式
+            for (const msg of data.conversation) {
+                if (msg.role === 'user') {
+                    messages.push({
+                        role: 'user',
+                        content: msg.content
+                    });
+                } else if (msg.role === 'assistant') {
+                    // 为 assistant 回复添加<think>思考标签
+                    const thinkingContent = this.generateThinkingContent(data, msg.content);
+                    const assistantContent = `<think>\n${thinkingContent}\n</think>\n\n${msg.content}`;
+                    messages.push({
+                        role: 'assistant',
+                        content: assistantContent
+                    });
+                }
+            }
+        } else {
+            // 没有对话数据：创建单轮问答格式
+            // user: 标题作为问题
+            // assistant: 内容作为回答（带思考）
+            const userContent = data.title || '';
+            const thinkingContent = this.generateThinkingContent(data, data.content);
+            const assistantContent = `<think>\n${thinkingContent}\n</think>\n\n${data.content}`;
+
+            messages.push(
+                { role: 'user', content: userContent },
+                { role: 'assistant', content: assistantContent }
+            );
+        }
+
+        return {
+            messages,
+            metadata: {
+                id: data.id,
+                type: data.type,
+                category: data.category,
+                subcategory: data.subcategory,
+                source: data.source,
+                batch_id: data.batch_id
+            }
+        };
+    }
+
+    /**
+     * 生成思考内容（<think>标签内的内容）
+     * @param {Object} data - 数据对象
+     * @param {string} responseContent - 回复内容
+     * @returns {string} 思考内容
+     */
+    generateThinkingContent(data, responseContent) {
+        // 根据数据类型生成不同的思考模式
+        const thinkingTemplates = {
+            '教训案例': () => {
+                return `分析用户问题类型，识别这是一个经验教训类的询问。
+需要从案例中提取关键教训点。
+组织回答结构：先点明主题，再分条列出教训，最后总结。
+确保语言简洁、实用，避免空泛说教。`;
+            },
+            '战术方法': () => {
+                return `理解用户需求，这是一个寻求具体方法的询问。
+梳理方法步骤，确保逻辑清晰、可操作性强。
+考虑用户可能的应用场景，提供针对性的建议。
+检查回答是否完整覆盖了问题要点。`;
+            },
+            '沟通技巧': () => {
+                return `分析沟通场景，理解用户遇到的沟通问题。
+提炼核心沟通原则和技巧。
+组织回答：先共情，再给方法，最后鼓励。
+确保建议实用、可执行。`;
+            },
+            '职场智慧': () => {
+                return `识别职场问题类型，理解用户处境。
+结合职场经验和规则，给出专业建议。
+回答结构：分析问题→提供方案→注意事项。
+语气要专业且温和，体现理解和关怀。`;
+            }
+        };
+
+        // 根据类型选择思考模板
+        const template = thinkingTemplates[data.type] || (() => {
+            return `分析用户问题，理解核心需求。
+组织回答结构，确保逻辑清晰。
+检查内容准确性和完整性。
+用简洁明了的语言回复。`;
+        });
+
+        return template();
     }
 
     /**
