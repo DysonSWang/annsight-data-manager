@@ -627,6 +627,11 @@ async function updateReview(req, res) {
                     batchId: rawData.batch_id
                 });
             }
+            // 更新状态为 processed
+            await repo.updateStatus(id, 'processed');
+        } else if (action === 'rejected') {
+            // 拒绝时更新状态为 rejected
+            await repo.updateStatus(id, 'rejected');
         }
 
         res.json({ success: true });
