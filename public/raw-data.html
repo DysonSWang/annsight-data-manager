@@ -884,7 +884,12 @@
         // 加载统计
         async function loadStats() {
             try {
-                const res = await fetch(`${API_BASE}/stats`);
+                const res = await fetch(`${API_BASE}/stats`, {
+                    headers: {
+                        'Cache-Control': 'no-cache',
+                        'Pragma': 'no-cache'
+                    }
+                });
                 const stats = await res.json();
                 document.getElementById('stat-total').textContent = stats.total || 0;
                 document.getElementById('stat-pending').textContent = stats.pending || 0;

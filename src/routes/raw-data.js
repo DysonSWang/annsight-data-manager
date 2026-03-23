@@ -674,6 +674,11 @@ async function listBatches(req, res) {
  */
 async function getStats(req, res) {
     try {
+        // 禁用缓存，确保前端获取最新数据
+        res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+        res.setHeader('Pragma', 'no-cache');
+        res.setHeader('Expires', '0');
+
         // 基础统计
         const baseQuery = `
             SELECT
