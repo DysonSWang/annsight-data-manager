@@ -223,23 +223,49 @@ async function batchTextUpload(req, res) {
 
         for (const text of texts) {
             const id = `rd-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+            const contentMd5 = require('crypto').createHash('md5').update(text).digest('hex');
 
             try {
-                // 1. 创建原始数据记录
+                // 1. 【第一层去重】检查 MD5 是否已存在
+                const existing = await repo.findByMd5(contentMd5);
+                if (existing) {
+                    // 直接标记为重复，跳过 ETL 处理
+                    const duplicateId = `rd-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+                    await repo.create({
+                        id: duplicateId,
+                        ossUrl: '',
+                        contentType: 'text/plain',
+                        source,
+                        batchId,
+                        contentMd5,
+                        metadata: { text, duplicateOf: existing.id, duplicateReason: '导入时 MD5 重复' }
+                    });
+                    await repo.markAsDuplicate(duplicateId, existing.id, '导入时 MD5 重复');
+
+                    results.push({
+                        success: false,
+                        id: duplicateId,
+                        isDuplicate: true,
+                        duplicateOf: existing.id
+                    });
+                    continue;
+                }
+
+                // 2. 创建原始数据记录
                 await repo.create({
                     id,
                     ossUrl: '',
                     contentType: 'text/plain',
                     source,
                     batchId,
-                    contentMd5: require('crypto').createHash('md5').update(text).digest('hex'),
+                    contentMd5,
                     metadata: { text }
                 });
 
-                // 1.5 设置 processing_status 为处理中
+                // 2.5 设置 processing_status 为处理中
                 await repo.updateProcessingStatus(id, 'processing_l1_clean');
 
-                // 2. 直接处理文本（跳过原始数据流程）
+                // 3. 直接处理文本（跳过原始数据流程）
                 const processResult = await etlService.processText(text, {
                     source,
                     batchId,
@@ -248,7 +274,7 @@ async function batchTextUpload(req, res) {
                     rawDataId: id // 传递 rawDataId 用于更新 processing_status
                 });
 
-                // 2.5 处理完成后更新状态
+                // 3.5 处理完成后更新状态
                 if (processResult.success) {
                     await repo.updateStatus(id, 'processed');
                     await repo.updateProcessingStatus(id, 'processed');
@@ -331,6 +357,38 @@ async function uploadHandler(req, res) {
                         { batchId, jsonPath, keepTempFiles }
                     );
 
+                    // 1.5【第一层去重】检查 MD5 是否已存在
+                    const contentMd5 = crypto.createHash('md5').update(extractResult.text).digest('hex');
+                    const existing = await repo.findByMd5(contentMd5);
+                    if (existing) {
+                        // 直接标记为重复，跳过 ETL 处理
+                        const duplicateId = `rd-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+                        await repo.create({
+                            id: duplicateId,
+                            ossUrl: extractResult.metadata?.sourceUrl || '',
+                            contentType: 'text/plain',
+                            source,
+                            batchId,
+                            contentMd5,
+                            metadata: {
+                                text: extractResult.text,
+                                duplicateOf: existing.id,
+                                duplicateReason: '导入时 MD5 重复'
+                            },
+                            platform: extractResult.metadata?.platform
+                        });
+                        await repo.markAsDuplicate(duplicateId, existing.id, '导入时 MD5 重复');
+
+                        results.push({
+                            success: false,
+                            id: duplicateId,
+                            url,
+                            isDuplicate: true,
+                            duplicateOf: existing.id
+                        });
+                        continue;
+                    }
+
                     // 2. 创建原始数据记录
                     await repo.create({
                         id,
@@ -338,7 +396,7 @@ async function uploadHandler(req, res) {
                         contentType: 'text/plain',
                         source,
                         batchId,
-                        contentMd5: crypto.createHash('md5').update(extractResult.text).digest('hex'),
+                        contentMd5,
                         metadata: {
                             text: extractResult.text,
                             platform: extractResult.metadata?.platform,
@@ -347,12 +405,16 @@ async function uploadHandler(req, res) {
                         platform: extractResult.metadata?.platform
                     });
 
+                    // 2.5 设置 processing_status 为处理中
+                    await repo.updateProcessingStatus(id, 'processing_l1_clean');
+
                     // 3. 处理提取的文本
                     const processResult = await etlService.processText(extractResult.text, {
                         source,
                         batchId,
                         purposes,
-                        fissionConfig: req.body.fissionConfig
+                        fissionConfig: req.body.fissionConfig,
+                        rawDataId: id
                     });
 
                     if (processResult.success) {
@@ -410,6 +472,44 @@ async function uploadHandler(req, res) {
                         { batchId, jsonPath, keepTempFiles }
                     );
 
+                    // 2.5【第一层去重】检查 MD5 是否已存在
+                    const contentMd5 = crypto.createHash('md5').update(extractResult.text).digest('hex');
+                    const existing = await repo.findByMd5(contentMd5);
+                    if (existing) {
+                        // 直接标记为重复，跳过 ETL 处理
+                        const duplicateId = `rd-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+                        await repo.create({
+                            id: duplicateId,
+                            ossUrl: '',
+                            contentType: file.mimetype || 'application/octet-stream',
+                            source,
+                            batchId,
+                            contentMd5,
+                            metadata: {
+                                originalFilename: file.originalname,
+                                fileSize: file.buffer.length,
+                                duplicateOf: existing.id,
+                                duplicateReason: '导入时 MD5 重复'
+                            },
+                            originalFilePath: filePath
+                        });
+                        await repo.markAsDuplicate(duplicateId, existing.id, '导入时 MD5 重复');
+
+                        results.push({
+                            success: false,
+                            id: duplicateId,
+                            filename: file.originalname,
+                            isDuplicate: true,
+                            duplicateOf: existing.id
+                        });
+
+                        // 清理临时文件
+                        if (!keepTempFiles) {
+                            await fs.promises.unlink(filePath).catch(() => {});
+                        }
+                        continue;
+                    }
+
                     // 3. 创建原始数据记录
                     await repo.create({
                         id,
@@ -417,7 +517,7 @@ async function uploadHandler(req, res) {
                         contentType: file.mimetype || 'application/octet-stream',
                         source,
                         batchId,
-                        contentMd5: crypto.createHash('md5').update(file.buffer).digest('hex'),
+                        contentMd5,
                         metadata: {
                             originalFilename: file.originalname,
                             fileSize: file.buffer.length
@@ -425,12 +525,16 @@ async function uploadHandler(req, res) {
                         originalFilePath: filePath
                     });
 
+                    // 3.5 设置 processing_status 为处理中
+                    await repo.updateProcessingStatus(id, 'processing_l1_clean');
+
                     // 4. 处理提取的文本
                     const processResult = await etlService.processText(extractResult.text, {
                         source,
                         batchId,
                         purposes,
-                        fissionConfig: req.body.fissionConfig
+                        fissionConfig: req.body.fissionConfig,
+                        rawDataId: id
                     });
 
                     if (processResult.success) {

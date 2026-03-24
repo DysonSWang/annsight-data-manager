@@ -10,9 +10,9 @@ const DEFAULT_PIPELINE_CONFIG = {
     steps: [
         { name: 'l1-clean', enabled: true, required: true },
         { name: 'l25-fission', enabled: false, required: false },  // 裂变步骤（可选）
+        { name: 'dedup', enabled: true, required: true },          // 去重移到裂变后立即执行
         { name: 'l2-structure', enabled: true, required: true },
-        { name: 'l3-evaluate', enabled: true, required: true },
-        { name: 'dedup', enabled: true, required: true }
+        { name: 'l3-evaluate', enabled: true, required: true }
     ]
 };
 
@@ -25,9 +25,9 @@ const PIPELINE_PRESETS = {
         steps: [
             { name: 'l1-clean', enabled: true, required: true },
             { name: 'l25-fission', enabled: false, required: false },  // 不启用裂变
+            { name: 'dedup', enabled: true, required: true },          // 去重
             { name: 'l2-structure', enabled: true, required: true },
-            { name: 'l3-evaluate', enabled: true, required: true },
-            { name: 'dedup', enabled: true, required: true }
+            { name: 'l3-evaluate', enabled: true, required: true }
         ]
     },
     // 裂变模式（启用 L2.5 裂变，L2 结构化为每条裂变数据处理）
@@ -36,10 +36,10 @@ const PIPELINE_PRESETS = {
         description: '多用途裂变处理流程',
         steps: [
             { name: 'l1-clean', enabled: true, required: true },
-            { name: 'l25-fission', enabled: true, required: false },  // 启用裂变
+            { name: 'l25-fission', enabled: true, required: false },   // 启用裂变
+            { name: 'dedup', enabled: true, required: true },          // 去重移到裂变后立即执行
             { name: 'l2-structure', enabled: true, required: true },
-            { name: 'l3-evaluate', enabled: true, required: true },
-            { name: 'dedup', enabled: true, required: true }
+            { name: 'l3-evaluate', enabled: true, required: true }
         ]
     },
     // 视频/音频处理（包含转录）
@@ -49,9 +49,9 @@ const PIPELINE_PRESETS = {
         steps: [
             { name: 'transcribe', enabled: true, required: true },
             { name: 'l1-clean', enabled: true, required: true },
+            { name: 'dedup', enabled: true, required: true },          // 去重
             { name: 'l2-structure', enabled: true, required: true },
-            { name: 'l3-evaluate', enabled: true, required: true },
-            { name: 'dedup', enabled: true, required: true }
+            { name: 'l3-evaluate', enabled: true, required: true }
         ]
     },
     // 快速模式（仅清洗和结构化）
@@ -60,6 +60,7 @@ const PIPELINE_PRESETS = {
         description: '快速处理模式',
         steps: [
             { name: 'l1-clean', enabled: true, required: true },
+            { name: 'dedup', enabled: true, required: true },          // 去重
             { name: 'l2-structure', enabled: true, required: false }
         ]
     }

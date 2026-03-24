@@ -86,11 +86,12 @@ class DedupProcessor extends BaseProcessor {
      */
     async loadFingerprintsFromDb() {
         try {
-            const result = await this.options.pool.query(`
+            // 1. 优先从 fingerprint_index 表加载 MinHash 指纹
+            const fiResult = await this.options.pool.query(`
                 SELECT data_id, minhash_blob FROM fingerprint_index
             `);
 
-            for (const row of result.rows) {
+            for (const row of fiResult.rows) {
                 try {
                     // 反序列化 MinHash
                     const minhash = MinHash.deserialize(
@@ -98,11 +99,29 @@ class DedupProcessor extends BaseProcessor {
                     );
                     this.lsh.insert(row.data_id, minhash);
                 } catch (e) {
-                    console.warn(`加载指纹失败：${row.data_id}`, e.message);
+                    console.warn(`加载 MinHash 指纹失败：${row.data_id}`, e.message);
                 }
             }
 
-            console.log(`[Dedup] 已加载 ${result.rows.length} 条指纹`);
+            console.log(`[Dedup] 已加载 ${fiResult.rows.length} 条 MinHash 指纹`);
+
+            // 2. 如果没有 MinHash 数据或加载失败，从 processed_data 表加载 MD5 指纹作为后备
+            if (this.md5Index) {
+                const pdResult = await this.options.pool.query(`
+                    SELECT id, content_md5 FROM processed_data
+                    WHERE content_md5 IS NOT NULL
+                    ORDER BY created_at DESC
+                    LIMIT 10000  -- 限制加载数量，避免内存爆炸
+                `);
+
+                for (const row of pdResult.rows) {
+                    if (row.content_md5) {
+                        this.md5Index.set(row.content_md5, row.id);
+                    }
+                }
+
+                console.log(`[Dedup] 已加载 ${pdResult.rows.length} 条 MD5 指纹（后备模式）`);
+            }
         } catch (error) {
             console.warn('[Dedup] 加载指纹库失败:', error.message);
         }
