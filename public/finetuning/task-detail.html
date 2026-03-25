@@ -544,6 +544,22 @@
         </div>
     </div>
 
+    <!-- 查看原文模态框 -->
+    <div id="rawDataModal" class="modal-overlay">
+        <div class="modal" style="max-width: 800px;">
+            <div class="modal-header">
+                <h3>查看原文</h3>
+                <button class="modal-close" onclick="closeRawDataModal()">&times;</button>
+            </div>
+            <div class="modal-body" style="max-height: 70vh; overflow-y: auto;">
+                <div id="rawDataContent"></div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeRawDataModal()">关闭</button>
+            </div>
+        </div>
+    </div>
+
     <script>
         const API_BASE = '/api/finetuning';
         const urlParams = new URLSearchParams(window.location.search);
@@ -687,6 +703,7 @@
                             <td><span class="score ${scoreClass}">${scoreText}</span></td>
                             <td><span class="status-badge status-${data.review_status}">${getStatusText(data.review_status)}</span></td>
                             <td>
+                                <button onclick="showRawData('${data.id}')" class="btn btn-sm btn-primary" style="margin-right: 0.5rem;">查看</button>
                                 <a href="/finetuning/review.html?id=${taskId}&dataId=${data.id}" class="btn btn-sm btn-secondary">详情</a>
                             </td>
                         </tr>
@@ -792,6 +809,66 @@
 
         function closeExportModal() {
             document.getElementById('exportModal').classList.remove('active');
+        }
+
+        // 查看原文功能
+        async function showRawData(dataId) {
+            try {
+                const response = await fetch(`${API_BASE}/task/${taskId}/data/${dataId}`);
+                const result = await response.json();
+
+                if (!result.data) {
+                    showToast('数据不存在', 'error');
+                    return;
+                }
+
+                const data = result.data;
+                const content = data.content || data.conversation?.[0]?.content || '无内容';
+
+                document.getElementById('rawDataContent').innerHTML = `
+                    <div style="margin-bottom: 1rem;">
+                        <strong style="color: var(--gray-600);">ID:</strong>
+                        <span style="font-family: monospace;">${data.id}</span>
+                    </div>
+                    <div style="margin-bottom: 1rem;">
+                        <strong style="color: var(--gray-600);">类型:</strong>
+                        ${escapeHtml(data.type || '-')}
+                    </div>
+                    <div style="margin-bottom: 1rem;">
+                        <strong style="color: var(--gray-600);">分类:</strong>
+                        ${escapeHtml(data.category || '-')}
+                    </div>
+                    <div style="margin-bottom: 1rem;">
+                        <strong style="color: var(--gray-600);">标题:</strong>
+                        ${escapeHtml(data.title || '-')}
+                    </div>
+                    <div style="margin-bottom: 1rem;">
+                        <strong style="color: var(--gray-600);">状态:</strong>
+                        <span class="status-badge status-${data.review_status}">${getStatusText(data.review_status)}</span>
+                    </div>
+                    ${data.max_ai_score ? `
+                    <div style="margin-bottom: 1rem;">
+                        <strong style="color: var(--gray-600);">AI 评分:</strong>
+                        <span class="score">${(parseFloat(data.max_ai_score) * 100).toFixed(0)}分</span>
+                    </div>
+                    ` : ''}
+                    <div style="margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--gray-200);">
+                        <h4 style="margin-bottom: 0.75rem; color: var(--gray-900);">原文内容</h4>
+                        <div style="background: var(--gray-50); padding: 1rem; border-radius: 8px; white-space: pre-wrap; word-break: break-word;">
+                            ${escapeHtml(content)}
+                        </div>
+                    </div>
+                `;
+
+                document.getElementById('rawDataModal').classList.add('active');
+            } catch (error) {
+                console.error('加载原文失败:', error);
+                showToast('加载失败：' + error.message, 'error');
+            }
+        }
+
+        function closeRawDataModal() {
+            document.getElementById('rawDataModal').classList.remove('active');
         }
 
         // 导入功能
