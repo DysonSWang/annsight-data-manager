@@ -807,7 +807,7 @@
 
         async function loadBatchList() {
             try {
-                const response = await fetch('/api/raw-data/batches');
+                const response = await fetch('/api/finetuning/source-batches');
                 const result = await response.json();
 
                 const select = document.getElementById('sourceBatch');
@@ -816,8 +816,8 @@
                 if (result.batches && result.batches.length > 0) {
                     result.batches.forEach(batch => {
                         const option = document.createElement('option');
-                        option.value = batch.batch_id;
-                        option.textContent = `${batch.batch_id} (${batch.count}条数据)`;
+                        option.value = batch.batchId;
+                        option.textContent = `${batch.batchId} (${batch.count}条，通过：${batch.approved || 0}，失败：${batch.rejected || 0})`;
                         select.appendChild(option);
                     });
                 }
