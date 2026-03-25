@@ -8,6 +8,7 @@ const cors = require('cors');
 const helmet = require('helmet');
 const path = require('path');
 const dotenv = require('dotenv');
+const logger = require('./utils/logger');
 
 // 加载环境变量
 dotenv.config();
@@ -22,12 +23,17 @@ app.use(cors());
 app.use(express.json({ limit: '50mb' })); // 增加请求体大小限制
 app.use(express.static(path.join(__dirname, '..', 'public')));
 
-// 请求日志中间件
+// 请求日志中间件（使用 Winston）
 app.use((req, res, next) => {
     const start = Date.now();
     res.on('finish', () => {
         const duration = Date.now() - start;
-        console.log(`[${new Date().toISOString()}] ${req.method} ${req.path} - ${res.statusCode} (${duration}ms)`);
+        logger.http(`${req.method} ${req.path}`, {
+            status: res.statusCode,
+            duration: `${duration}ms`,
+            ip: req.ip,
+            userAgent: req.get('user-agent')
+        });
     });
     next();
 });
@@ -52,9 +58,9 @@ app.locals.pool = pool;
 // 测试数据库连接
 pool.query('SELECT NOW()', (err, res) => {
     if (err) {
-        console.error('❌ 数据库连接失败:', err.message);
+        logger.error('❌ 数据库连接失败', err, { path: 'src/index.js' });
     } else {
-        console.log('✅ 数据库连接成功:', res.rows[0].now);
+        logger.info('✅ 数据库连接成功', { timestamp: res.rows[0].now });
     }
 });
 
@@ -142,26 +148,26 @@ app.get('/api/review/stats/summary', async (req, res) => {
 const PORT = process.env.PORT || 3000;
 
 app.listen(PORT, () => {
-    console.log('='.repeat(60));
-    console.log(`🚀 AnnSight 数据审核平台已启动`);
-    console.log(`📌 访问地址：http://localhost:${PORT}`);
-    console.log(`📊 API 文档：http://localhost:${PORT}/api/health`);
-    console.log('='.repeat(60));
+    logger.info('🚀 AnnSight 数据审核平台已启动', {
+        port: PORT,
+        url: `http://localhost:${PORT}`,
+        healthUrl: `http://localhost:${PORT}/api/health`
+    });
 });
 
 // 优雅关闭
 process.on('SIGTERM', () => {
-    console.log('📌 正在关闭服务器...');
+    logger.info('📌 正在关闭服务器...');
     pool.end(() => {
-        console.log('✅ 数据库连接已关闭');
+        logger.info('✅ 数据库连接已关闭');
         process.exit(0);
     });
 });
 
 process.on('SIGINT', () => {
-    console.log('📌 正在关闭服务器...');
+    logger.info('📌 正在关闭服务器...');
     pool.end(() => {
-        console.log('✅ 数据库连接已关闭');
+        logger.info('✅ 数据库连接已关闭');
         process.exit(0);
     });
 });

@@ -5,6 +5,7 @@ const { EtlService } = require('../pipeline/etl-service');
 const { ContentRouter } = require('../services/content-router');
 const RawDataReviewService = require('../services/RawDataReviewService');
 const notificationService = require('../services/notificationService');
+const logger = require('../utils/logger');
 const { v4: uuidv4 } = require('uuid');
 const fs = require('fs');
 const path = require('path');
@@ -96,7 +97,7 @@ async function listRawData(req, res) {
             }
         });
     } catch (error) {
-        console.error('Error listing raw data:', error);
+        logger.error('Error listing raw data', error);
         res.status(500).json({ error: 'Internal server error' });
     }
 }
@@ -288,7 +289,7 @@ async function batchTextUpload(req, res) {
                 // 3. 直接处理文本（跳过原始数据流程）
                 // 从对象中提取纯文本内容（兼容字符串和对象两种格式）
                 const textContent = typeof text === 'string' ? text : (text.content || '');
-                console.log('[batchTextUpload] 开始处理文本:', {
+                logger.info('[batchTextUpload] 开始处理文本', {
                     batchId,
                     source,
                     purposes: selectedPurposes,
@@ -309,7 +310,7 @@ async function batchTextUpload(req, res) {
                         source: text.source || ''
                     }
                 });
-                console.log('[batchTextUpload] processResult:', {
+                logger.info('[batchTextUpload] processResult', {
                     success: processResult.success,
                     processedDataIds: processResult.processedDataIds,
                     error: processResult.error
@@ -361,7 +362,7 @@ async function batchTextUpload(req, res) {
 
         // 如果配置了 AI 审核且启用，则自动开始审核
         if (aiReviewConfig && aiReviewConfig.enabled !== false) {
-            console.log('[batchTextUpload] 配置了 AI 审核，即将自动开始');
+            logger.info('[batchTextUpload] 配置了 AI 审核，即将自动开始');
             // 异步执行 AI 审核，不阻塞响应
             (async () => {
                 try {
@@ -375,9 +376,9 @@ async function batchTextUpload(req, res) {
                         taskName: aiReviewConfig.taskName || `批次 ${batchId}`,
                         baseUrl: process.env.BASE_URL || 'http://localhost:3000'
                     });
-                    console.log('[batchTextUpload] AI 审核完成:', reviewResult.summary);
+                    logger.info('[batchTextUpload] AI 审核完成', reviewResult.summary);
                 } catch (error) {
-                    console.error('[batchTextUpload] AI 审核失败:', error.message);
+                    logger.error('[batchTextUpload] AI 审核失败', error);
                 }
             })();
 
