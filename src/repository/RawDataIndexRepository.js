@@ -16,6 +16,12 @@ class RawDataIndexRepository {
      * @param {string} rawData.batchId - 批次 ID
      * @param {string} [rawData.contentMd5] - 内容 MD5
      * @param {Object} [rawData.metadata] - 元数据 (JSONB)
+     * @param {boolean} [rawData.aiReviewEnabled] - 是否启用 AI 审核
+     * @param {string} [rawData.aiReviewPrompt] - AI 审核提示词
+     * @param {number} [rawData.aiPassThreshold] - AI 通过阈值
+     * @param {number} [rawData.aiMaxRounds] - AI 最大审核轮次
+     * @param {boolean} [rawData.manualReviewEnabled] - 是否启用人工审核
+     * @param {string} [rawData.manualReviewScope] - 人工审核范围
      * @returns {Promise<Object>} 创建的记录
      */
     async create(rawData) {
@@ -27,7 +33,13 @@ class RawDataIndexRepository {
             batchId,
             contentMd5,
             metadata,
-            status = 'pending'
+            status = 'pending',
+            aiReviewEnabled,
+            aiReviewPrompt,
+            aiPassThreshold,
+            aiMaxRounds,
+            manualReviewEnabled,
+            manualReviewScope
         } = rawData;
 
         // 验证必填字段（ossUrl 可以为空字符串）
@@ -37,8 +49,10 @@ class RawDataIndexRepository {
 
         const query = `
             INSERT INTO raw_data_index
-            (id, oss_url, content_type, source, batch_id, content_md5, metadata, status)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+            (id, oss_url, content_type, source, batch_id, content_md5, metadata, status,
+             ai_review_enabled, ai_review_prompt, ai_pass_threshold, ai_max_rounds,
+             manual_review_enabled, manual_review_scope)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
             RETURNING *
         `;
 
@@ -50,7 +64,13 @@ class RawDataIndexRepository {
             batchId,
             contentMd5 || null,
             metadata ? JSON.stringify(metadata) : null,
-            status
+            status,
+            aiReviewEnabled !== undefined ? aiReviewEnabled : null,
+            aiReviewPrompt || null,
+            aiPassThreshold ? parseFloat(aiPassThreshold) : null,
+            aiMaxRounds || null,
+            manualReviewEnabled !== undefined ? manualReviewEnabled : null,
+            manualReviewScope || null
         ]);
 
         return result.rows[0];

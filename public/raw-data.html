@@ -493,13 +493,15 @@
                             <th>类型</th>
                             <th>状态</th>
                             <th>处理阶段</th>
+                            <th>AI 审核</th>
+                            <th>人工审核</th>
                             <th>MD5</th>
                             <th>创建时间</th>
                             <th>操作</th>
                         </tr>
                     </thead>
                     <tbody id="table-body">
-                        <tr><td colspan="8" style="text-align: center; padding: 3rem;">加载中...</td></tr>
+                        <tr><td colspan="11" style="text-align: center; padding: 3rem;">加载中...</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -858,6 +860,71 @@
                     </div>
                     <small style="display: block; margin-top: 0.75rem;">TXT/CSV：每行一条数据 | Excel：读取第一列数据 | JSON：数组或{data:[...]}</small>
                 </div>
+
+                <!-- AI 审核配置 -->
+                <div style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid var(--gray-200);">
+                    <h4 style="font-size: 1rem; color: var(--gray-900); margin-bottom: 0.75rem;">🤖 AI 审核配置</h4>
+                    <div class="form-group">
+                        <label style="display: flex; align-items: center; gap: 0.5rem;">
+                            <input type="checkbox" id="ai-review-enabled" checked style="width: auto;">
+                            <span style="font-weight: 600;">启用 AI 审核</span>
+                        </label>
+                        <small style="display: block; margin-top: 0.5rem; color: var(--gray-600);">
+                            上传后自动进行 AI 质量审核，根据审核结果决定是否进入下一流程
+                        </small>
+                    </div>
+                    <div class="form-group" id="ai-prompt-group">
+                        <label>审核要求 Prompt</label>
+                        <textarea id="ai-review-prompt" rows="4" placeholder="请输入数据审核的具体要求，例如：&#10;- 内容必须完整，无缺失&#10;- 不得包含敏感词或违规内容&#10;- 语言流畅自然，符合表达习惯&#10;- 适合用于 RAG 检索或微调训练" style="font-family: inherit; font-size: 0.875rem;"></textarea>
+                        <small style="display: block; margin-top: 0.5rem;">AI 将基于此要求对数据进行质量评估，评分低于阈值的数据将被标记为待人工审核</small>
+                    </div>
+                    <div class="form-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                        <div class="form-group">
+                            <label>通过阈值</label>
+                            <select id="ai-pass-threshold">
+                                <option value="0.6">60 分（宽松）</option>
+                                <option value="0.7">70 分</option>
+                                <option value="0.75" selected>75 分（默认）</option>
+                                <option value="0.8">80 分</option>
+                                <option value="0.85">85 分（严格）</option>
+                                <option value="0.9">90 分（极严）</option>
+                            </select>
+                            <small>低于此分数的数据需要人工审核</small>
+                        </div>
+                        <div class="form-group">
+                            <label>最大审核轮次</label>
+                            <select id="ai-max-rounds">
+                                <option value="1">1 轮（只审核）</option>
+                                <option value="2" selected>2 轮（审核 + 优化）</option>
+                                <option value="3">3 轮（多次优化循环）</option>
+                            </select>
+                            <small>审核失败后是否自动优化</small>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 人工审核配置 -->
+                <div style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid var(--gray-200);">
+                    <h4 style="font-size: 1rem; color: var(--gray-900); margin-bottom: 0.75rem;">👤 人工审核配置</h4>
+                    <div class="form-group">
+                        <label style="display: flex; align-items: center; gap: 0.5rem;">
+                            <input type="checkbox" id="manual-review-enabled" checked style="width: auto;">
+                            <span style="font-weight: 600;">启用人工审核</span>
+                        </label>
+                        <small style="display: block; margin-top: 0.5rem; color: var(--gray-600);">
+                            AI 审核完成后，由人工进行最终确认
+                        </small>
+                    </div>
+                    <div class="form-group" id="manual-review-scope-group">
+                        <label>审核范围</label>
+                        <select id="manual-review-scope">
+                            <option value="failed">仅 AI 失败的数据（推荐）</option>
+                            <option value="approved">仅 AI 通过的数据（确认质量）</option>
+                            <option value="all">全量审核（所有数据）</option>
+                        </select>
+                        <small style="display: block; margin-top: 0.5rem;">选择需要人工审核的数据范围</small>
+                    </div>
+                </div>
             </div>
 
             <div class="modal-actions">
@@ -946,11 +1013,26 @@
             const tbody = document.getElementById('table-body');
 
             if (data.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 3rem;">暂无数据</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="9" style="text-align: center; padding: 3rem;">暂无数据</td></tr>';
                 return;
             }
 
-            tbody.innerHTML = data.map(item => `
+            tbody.innerHTML = data.map(item => {
+                // AI 审核状态
+                const aiStatusClass = item.ai_review_status === 'approved' ? 'badge-success' :
+                                     (item.ai_review_status === 'failed' ? 'badge-warning' : 'badge-secondary');
+                const aiStatusText = item.ai_review_status ?
+                    (item.ai_review_status === 'approved' ? 'AI 通过' :
+                     (item.ai_review_status === 'failed' ? 'AI 失败' : item.ai_review_status)) : '-';
+                const aiScoreDisplay = item.ai_review_score ?
+                    `<span style="font-weight: 600; color: ${parseFloat(item.ai_review_score) >= 0.85 ? 'var(--success)' : 'var(--warning)'};">${(parseFloat(item.ai_review_score) * 100).toFixed(0)}</span>` : '';
+
+                // 人工审核状态
+                const manualStatusText = item.manual_review_decision === 'approved' ? '人工通过' :
+                                        (item.manual_review_decision === 'rejected' ? '人工拒绝' :
+                                         (item.manual_review_status === 'completed' ? '已完成' : '-'));
+
+                return `
                 <tr>
                     <td style="font-family: monospace; font-size: 0.85rem;">${item.id.slice(-12)}</td>
                     <td>${getSourceName(item.source)}</td>
@@ -958,11 +1040,18 @@
                     <td>${getContentTypeName(item.content_type)}</td>
                     <td><span class="badge badge-${item.status}">${getStatusName(item.status)}</span></td>
                     <td>${item.processing_status ? `<span class="badge badge-${item.processing_status}">${getProcessingStageName(item.processing_status)}</span>` : '-'}</td>
+                    <td>
+                        ${item.ai_review_status ? `
+                            <span class="badge ${aiStatusClass}" title="AI 得分：${aiScoreDisplay}">${aiStatusText}</span>
+                        ` : '-'}
+                    </td>
+                    <td>${item.manual_review_decision ? `<span class="badge badge-${item.manual_review_decision === 'approved' ? 'success' : 'danger'}">${manualStatusText}</span>` : '-'}</td>
                     <td style="font-family: monospace; font-size: 0.75rem;">${item.content_md5 ? item.content_md5.slice(0, 16) + '...' : '-'}</td>
                     <td>${new Date(item.created_at).toLocaleString('zh-CN')}</td>
                     <td>
                         <div class="actions">
-                            <button class="btn btn-xs btn-secondary" onclick="viewDetail('${item.id}')">查看</button>
+                            <button class="btn btn-xs btn-primary" onclick="viewReviewDetail('${item.id}')" title="查看审核详情">审核</button>
+                            <button class="btn btn-xs btn-secondary" onclick="viewDetail('${item.id}')" title="查看详细">查看</button>
                             ${item.status === 'pending' ? `
                                 <button class="btn btn-xs btn-success" onclick="quickProcess('${item.id}')">处理</button>
                             ` : ''}
@@ -973,7 +1062,13 @@
                         </div>
                     </td>
                 </tr>
-            `).join('');
+            `;
+            }).join('');
+        }
+
+        // 查看审核详情
+        function viewReviewDetail(id) {
+            window.location.href = `/raw-data-review.html?id=${id}`;
         }
 
         // 查看详情

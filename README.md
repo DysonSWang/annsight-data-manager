@@ -2,9 +2,9 @@
 
 > AI 优先 + 人工抽检模式的数据处理流水线
 
-**版本**: v1.0
-**状态**: ✅ 核心功能已完成
-**最后更新**: 2026-03-21
+**版本**: v2.0
+**状态**: ✅ 核心功能已完成 + 优化改进完成
+**最后更新**: 2026-03-26
 
 ---
 
@@ -31,6 +31,29 @@ http://localhost:3000
 
 ## 📋 系统功能
 
+### 新增功能 (v2.0 - 2026-03-26)
+
+**🔐 认证授权**:
+- JWT Token 验证
+- 用户管理（创建、删除、密码修改）
+- 管理员权限控制
+
+**📢 消息通知**:
+- 钉钉机器人通知
+- 飞书机器人通知
+- 审核完成自动通知
+- 待办事项提醒
+
+**📊 状态机管理**:
+- 统一状态流转控制
+- 状态转换验证
+- 进度跟踪器
+
+**📝 日志系统**:
+- Winston 多级别日志
+- 错误日志、访问日志分离
+- 控制台彩色输出
+
 ### 4 个核心页面
 
 | 页面 | URL | 功能 |
@@ -40,16 +63,31 @@ http://localhost:3000
 | 📈 统计看板 | `/stats.html` | 实时统计、分布图表、审核进度 |
 | 🔍 人工抽检 | `/spotcheck.html` | AI 准确率验证、分层抽样、批量修正 |
 
-### 21 个 API 端点
+### 21+ 个 API 端点
+
+**认证授权** (`/api/auth/*`):
+- `POST /login` - 用户登录
+- `GET /me` - 获取当前用户
+- `POST /change-password` - 修改密码
+- `POST /users` - 创建用户（管理员）
+- `GET /users` - 用户列表（管理员）
+- `DELETE /users/:username` - 删除用户（管理员）
 
 **源数据管理** (`/api/raw-data/*`):
 - `GET /stats` - 统计数据
 - `GET /list` - 列表查询
-- `POST /batch-text` - 批量上传
+- `POST /batch-text` - 批量上传（支持 AI 审核配置）
 - `GET /:id` - 详情
 - `DELETE /:id` - 删除
 - `PATCH /:id/status` - 更新状态
 - `POST /:id/review` - 第一级审核
+- `POST /:batchId/ai-review/start` - 启动 AI 审核
+- `GET /:batchId/manual-review/list` - 获取待人工审核列表
+- `POST /:id/manual-review` - 提交人工审核
+- `POST /:id/manual-review/optimize` - 人工优化
+- `POST /:batchId/notify/manual-review` - 发送待办通知
+- `GET /:id/review-rounds` - 获取审核轮次
+- `GET /:batchId/feedback-logs` - 获取反馈日志
 
 **数据审核** (`/api/review/*`):
 - `GET /processed/low-confidence` - 低置信度数据
@@ -115,6 +153,14 @@ AI 自动通过 + 冷却期    人工详细审核
     ↓                   ↓
 Dify RAG 知识库      阿里百炼微调数据集
 ```
+
+---
+
+## 📚 文档
+
+- **[优化总结](docs/OPTIMIZATION_SUMMARY.md)** - v2.0 优化改进详情
+- **[通知服务](docs/NOTIFICATION_SERVICE.md)** - 钉钉/飞书通知配置
+- **[状态机管理](docs/STATE_MACHINE.md)** - 审核状态流转管理
 
 ---
 

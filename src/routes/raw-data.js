@@ -3,6 +3,8 @@ const multer = require('multer');
 const RawDataIndexRepository = require('../repository/RawDataIndexRepository');
 const { EtlService } = require('../pipeline/etl-service');
 const { ContentRouter } = require('../services/content-router');
+const RawDataReviewService = require('../services/RawDataReviewService');
+const notificationService = require('../services/notificationService');
 const { v4: uuidv4 } = require('uuid');
 const fs = require('fs');
 const path = require('path');
@@ -199,7 +201,7 @@ async function batchUpload(req, res) {
  */
 async function batchTextUpload(req, res) {
     try {
-        const { texts, batchId, source, purposes, fissionConfig } = req.body;
+        const { texts, batchId, source, purposes, fissionConfig, aiReviewConfig, manualReviewConfig } = req.body;
 
         if (!texts || !Array.isArray(texts)) {
             return res.status(400).json({ error: 'texts 必须是数组' });
@@ -253,8 +255,8 @@ async function batchTextUpload(req, res) {
                     continue;
                 }
 
-                // 2. 创建原始数据记录
-                await repo.create({
+                // 2. 创建原始数据记录，同时保存审核配置
+                const createData = {
                     id,
                     ossUrl: '',
                     contentType: 'text/plain',
@@ -262,7 +264,23 @@ async function batchTextUpload(req, res) {
                     batchId,
                     contentMd5,
                     metadata: { text }
-                });
+                };
+
+                // 保存 AI 审核配置
+                if (aiReviewConfig) {
+                    createData.aiReviewEnabled = aiReviewConfig.enabled !== false;
+                    createData.aiReviewPrompt = aiReviewConfig.prompt || '';
+                    createData.aiPassThreshold = aiReviewConfig.passThreshold || 0.75;
+                    createData.aiMaxRounds = aiReviewConfig.maxRounds || 2;
+                }
+
+                // 保存人工审核配置
+                if (manualReviewConfig) {
+                    createData.manualReviewEnabled = manualReviewConfig.enabled !== false;
+                    createData.manualReviewScope = manualReviewConfig.scope || 'failed';
+                }
+
+                await repo.create(createData);
 
                 // 2.5 设置 processing_status 为处理中
                 await repo.updateProcessingStatus(id, 'processing_l1_clean');
@@ -332,14 +350,46 @@ async function batchTextUpload(req, res) {
 
         const successCount = results.filter(r => r.success).length;
 
-        res.json({
+        const response = {
             success: true,
             total: texts.length,
             successCount,
             failCount: texts.length - successCount,
             totalFissionCount, // 裂变总数
             results
-        });
+        };
+
+        // 如果配置了 AI 审核且启用，则自动开始审核
+        if (aiReviewConfig && aiReviewConfig.enabled !== false) {
+            console.log('[batchTextUpload] 配置了 AI 审核，即将自动开始');
+            // 异步执行 AI 审核，不阻塞响应
+            (async () => {
+                try {
+                    const reviewService = new RawDataReviewService(req.app.locals.pool);
+                    const reviewResult = await reviewService.startAiReview(batchId, {
+                        maxRounds: aiReviewConfig.maxRounds || 2,
+                        passThreshold: aiReviewConfig.passThreshold || 0.75,
+                        autoOptimize: aiReviewConfig.autoOptimize !== false,
+                        reviewPrompt: aiReviewConfig.prompt || '',
+                        notifyOnComplete: aiReviewConfig.notifyOnComplete !== false,
+                        taskName: aiReviewConfig.taskName || `批次 ${batchId}`,
+                        baseUrl: process.env.BASE_URL || 'http://localhost:3000'
+                    });
+                    console.log('[batchTextUpload] AI 审核完成:', reviewResult.summary);
+                } catch (error) {
+                    console.error('[batchTextUpload] AI 审核失败:', error.message);
+                }
+            })();
+
+            response.aiReviewPending = true;
+            response.aiReviewConfig = {
+                enabled: true,
+                maxRounds: aiReviewConfig.maxRounds || 2,
+                autoOptimize: aiReviewConfig.autoOptimize !== false
+            };
+        }
+
+        res.json(response);
     } catch (error) {
         console.error('Error batch text upload:', error);
         res.status(500).json({ error: error.message });
@@ -863,6 +913,213 @@ async function getStats(req, res) {
     }
 }
 
+/**
+ * 启动 AI 审核
+ * POST /api/raw-data/:batchId/ai-review/start
+ */
+async function startAiReview(req, res) {
+    try {
+        const { batchId } = req.params;
+        const { aiReviewConfig, notifyOnComplete, taskName, baseUrl } = req.body;
+
+        const reviewService = new RawDataReviewService(req.app.locals.pool);
+
+        const result = await reviewService.startAiReview(batchId, {
+            ...aiReviewConfig,
+            notifyOnComplete: notifyOnComplete !== false,
+            taskName: taskName || `批次 ${batchId}`,
+            baseUrl: baseUrl || process.env.BASE_URL || 'http://localhost:3000'
+        });
+
+        res.json({
+            success: true,
+            ...result
+        });
+    } catch (error) {
+        console.error('Error starting AI review:', error);
+        res.status(500).json({ error: error.message });
+    }
+}
+
+/**
+ * 获取待人工审核的数据列表
+ * GET /api/raw-data/:batchId/manual-review/list
+ */
+async function getManualReviewList(req, res) {
+    try {
+        const { batchId } = req.params;
+        const { scope = 'failed', limit = 100 } = req.query;
+
+        const reviewService = new RawDataReviewService(req.app.locals.pool);
+        const dataList = await reviewService.getManualReviewList(batchId, { scope, limit: parseInt(limit) });
+
+        res.json({
+            success: true,
+            count: dataList.length,
+            scope,
+            data: dataList
+        });
+    } catch (error) {
+        console.error('Error getting manual review list:', error);
+        res.status(500).json({ error: error.message });
+    }
+}
+
+/**
+ * 提交人工审核决策
+ * POST /api/raw-data/:id/manual-review
+ */
+async function submitManualReview(req, res) {
+    try {
+        const { id } = req.params;
+        const { decision, reason, reviewer = 'admin' } = req.body;
+
+        const reviewService = new RawDataReviewService(req.app.locals.pool);
+        const result = await reviewService.submitManualReview(id, { decision, reason, reviewer });
+
+        res.json(result);
+    } catch (error) {
+        console.error('Error submitting manual review:', error);
+        res.status(500).json({ error: error.message });
+    }
+}
+
+/**
+ * 人工优化
+ * POST /api/raw-data/:id/manual-review/optimize
+ */
+async function manualOptimize(req, res) {
+    try {
+        const { id } = req.params;
+        const { prompt, recordFeedback = true } = req.body;
+
+        if (!prompt) {
+            return res.status(400).json({ error: '优化提示词不能为空' });
+        }
+
+        const reviewService = new RawDataReviewService(req.app.locals.pool);
+        const result = await reviewService.manualOptimize(id, { prompt, recordFeedback });
+
+        res.json(result);
+    } catch (error) {
+        console.error('Error manual optimizing:', error);
+        res.status(500).json({ error: error.message });
+    }
+}
+
+/**
+ * 获取审核轮次记录
+ * GET /api/raw-data/:id/review-rounds
+ */
+async function getReviewRounds(req, res) {
+    try {
+        const { id } = req.params;
+
+        const query = `
+            SELECT * FROM raw_data_review_rounds
+            WHERE data_id = $1
+            ORDER BY round_number, created_at DESC
+        `;
+        const result = await req.app.locals.pool.query(query, [id]);
+
+        res.json({
+            success: true,
+            count: result.rows.length,
+            rounds: result.rows
+        });
+    } catch (error) {
+        console.error('Error getting review rounds:', error);
+        res.status(500).json({ error: error.message });
+    }
+}
+
+/**
+ * 获取反馈日志
+ * GET /api/raw-data/:batchId/feedback-logs
+ */
+async function getFeedbackLogs(req, res) {
+    try {
+        const { batchId } = req.params;
+        const { limit = 100 } = req.query;
+
+        const query = `
+            SELECT * FROM raw_data_review_feedback_logs
+            WHERE batch_id = $1
+            ORDER BY created_at DESC
+            LIMIT $2
+        `;
+        const result = await req.app.locals.pool.query(query, [batchId, parseInt(limit)]);
+
+        res.json({
+            success: true,
+            count: result.rows.length,
+            logs: result.rows
+        });
+    } catch (error) {
+        console.error('Error getting feedback logs:', error);
+        res.status(500).json({ error: error.message });
+    }
+}
+
+/**
+ * 发送人工审核待办通知
+ * POST /api/raw-data/:batchId/notify/manual-review
+ */
+async function notifyManualReview(req, res) {
+    try {
+        const { batchId } = req.params;
+        const { taskName, baseUrl, notifyAll = false } = req.body;
+
+        const reviewService = new RawDataReviewService(req.app.locals.pool);
+
+        // 获取待审核数量
+        const pendingData = await reviewService.getManualReviewList(batchId, { scope: 'failed', limit: 1 });
+
+        if (pendingData.length === 0) {
+            return res.json({
+                success: true,
+                message: '没有待人工审核的数据',
+                pendingCount: 0,
+                notified: false
+            });
+        }
+
+        // 获取实际的待审核数量（通过查询总数）
+        const countQuery = `
+            SELECT COUNT(*) as count
+            FROM raw_data_index
+            WHERE batch_id = $1
+              AND status != 'duplicate'
+              AND ai_review_status = 'failed'
+              AND (manual_review_status IS NULL OR manual_review_status = 'pending')
+        `;
+        const countResult = await req.app.locals.pool.query(countQuery, [batchId]);
+        const pendingCount = parseInt(countResult.rows[0].count);
+
+        // 发送通知
+        const notificationResult = await notificationService.sendManualReviewPending(
+            {
+                taskName: taskName || `批次 ${batchId}`,
+                batchId,
+                baseUrl: baseUrl || process.env.BASE_URL || 'http://localhost:3000',
+                reviewScope: 'failed',
+                notifyAll
+            },
+            pendingCount
+        );
+
+        res.json({
+            success: true,
+            pendingCount,
+            notified: notificationResult.success,
+            notificationResult
+        });
+    } catch (error) {
+        console.error('Error notifying manual review:', error);
+        res.status(500).json({ error: error.message });
+    }
+}
+
 // 注册路由（注意顺序：具体路由在前，动态路由在后）
 router.get('/list', listRawData);
 router.get('/batches', listBatches);
@@ -874,5 +1131,14 @@ router.get('/:id', getRawData);
 router.delete('/:id', deleteRawData);
 router.patch('/:id/status', updateStatus);
 router.post('/:id/review', updateReview);
+
+// 审核相关路由
+router.post('/:batchId/ai-review/start', startAiReview);
+router.get('/:batchId/manual-review/list', getManualReviewList);
+router.post('/:id/manual-review', submitManualReview);
+router.post('/:id/manual-review/optimize', manualOptimize);
+router.get('/:id/review-rounds', getReviewRounds);
+router.get('/:batchId/feedback-logs', getFeedbackLogs);
+router.post('/:batchId/notify/manual-review', notifyManualReview);
 
 module.exports = router;

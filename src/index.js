@@ -19,8 +19,18 @@ app.use(helmet({
     contentSecurityPolicy: false, // 开发模式禁用 CSP
 }));
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '50mb' })); // 增加请求体大小限制
 app.use(express.static(path.join(__dirname, '..', 'public')));
+
+// 请求日志中间件
+app.use((req, res, next) => {
+    const start = Date.now();
+    res.on('finish', () => {
+        const duration = Date.now() - start;
+        console.log(`[${new Date().toISOString()}] ${req.method} ${req.path} - ${res.statusCode} (${duration}ms)`);
+    });
+    next();
+});
 
 // 数据库连接池
 const { Pool } = require('pg');
@@ -48,21 +58,27 @@ pool.query('SELECT NOW()', (err, res) => {
     }
 });
 
-// API 路由
+// 认证路由（公开）
+const authRoutes = require('./routes/auth');
+app.use('/api/auth', authRoutes);
+
+// API 路由（需要认证）
+const authMiddleware = require('./middleware/auth');
+
 const reviewRoutes = require('./routes/review');
-app.use('/api/review', reviewRoutes);
+app.use('/api/review', authMiddleware.optional, reviewRoutes);
 
 // ETL 测试路由（用于 UAT）
 const etlRoutes = require('./routes/etl');
-app.use('/api/etl', etlRoutes);
+app.use('/api/etl', authMiddleware.optional, etlRoutes);
 
 // 源数据管理路由
 const rawDataRoutes = require('./routes/raw-data');
-app.use('/api/raw-data', rawDataRoutes);
+app.use('/api/raw-data', authMiddleware.optional, rawDataRoutes);
 
 // 微调任务路由
 const finetuningRoutes = require('./routes/finetuning');
-app.use('/api/finetuning', finetuningRoutes);
+app.use('/api/finetuning', authMiddleware.optional, finetuningRoutes);
 
 // 健康检查
 app.get('/api/health', (req, res) => {
