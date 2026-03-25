@@ -402,21 +402,102 @@
 
     <!-- 导入模态框 -->
     <div id="importModal" class="modal-overlay">
-        <div class="modal">
+        <div class="modal" style="max-width: 600px;">
             <div class="modal-header">
                 <h3>导入数据</h3>
                 <button class="modal-close" onclick="closeImportModal()">&times;</button>
             </div>
-            <div class="modal-body">
+            <div class="modal-body" style="max-height: 70vh; overflow-y: auto;">
                 <div class="form-group">
                     <label for="sourceBatch">源数据批次</label>
                     <select id="sourceBatch">
                         <option value="">请选择源数据批次</option>
                     </select>
                 </div>
+
+                <!-- AI 审核配置 -->
+                <div style="margin-top: 1.5rem;">
+                    <h4 style="font-size: 1rem; color: var(--gray-900); margin-bottom: 0.75rem;">AI 审核配置</h4>
+                    <div class="form-group">
+                        <label>
+                            <input type="checkbox" id="aiReviewEnabled" checked style="width: auto;">
+                            启用 AI 审核
+                        </label>
+                    </div>
+                    <div class="form-group">
+                        <label for="aiReviewMaxRounds">最大审核轮次</label>
+                        <select id="aiReviewMaxRounds">
+                            <option value="0">跳过 AI 审核</option>
+                            <option value="1">1 轮（只审核，不优化）</option>
+                            <option value="2" selected>2 轮（审核→优化→再审）</option>
+                            <option value="3">3 轮（多次优化循环）</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="aiReviewPassThreshold">通过阈值</label>
+                        <select id="aiReviewPassThreshold">
+                            <option value="0.75">75 分（较宽松）</option>
+                            <option value="0.80">80 分</option>
+                            <option value="0.85" selected>85 分（默认）</option>
+                            <option value="0.90">90 分（严格）</option>
+                            <option value="0.95">95 分（极严）</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>
+                            <input type="checkbox" id="aiAutoOptimize" checked style="width: auto;">
+                            审核失败后自动优化
+                        </label>
+                    </div>
+                </div>
+
+                <!-- 人工审核配置 -->
+                <div style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid var(--gray-200);">
+                    <h4 style="font-size: 1rem; color: var(--gray-900); margin-bottom: 0.75rem;">人工审核配置</h4>
+                    <div class="form-group">
+                        <label>
+                            <input type="checkbox" id="manualReviewEnabled" checked style="width: auto;">
+                            启用人工审核
+                        </label>
+                    </div>
+                    <div class="form-group">
+                        <label for="manualReviewScope">审核范围</label>
+                        <select id="manualReviewScope">
+                            <option value="all">全量审核（所有数据）</option>
+                            <option value="approved">仅 AI 通过的数据</option>
+                            <option value="failed" selected>仅 AI 失败的数据</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>
+                            <input type="checkbox" id="manualOptimizationEnabled" checked style="width: auto;">
+                            支持点击优化按钮（输入提示词优化）
+                        </label>
+                    </div>
+                </div>
+
+                <!-- 裂变配置 -->
+                <div style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid var(--gray-200);">
+                    <h4 style="font-size: 1rem; color: var(--gray-900); margin-bottom: 0.75rem;">裂变配置（审核通过后执行）</h4>
+                    <div class="form-group">
+                        <label>
+                            <input type="checkbox" id="fissionEnabled" style="width: auto;">
+                            启用裂变
+                        </label>
+                    </div>
+                    <div class="form-group">
+                        <label for="fissionCount">裂变数量</label>
+                        <input type="number" id="fissionCount" value="6" min="1" max="20" style="width: 100%; padding: 0.5rem; border: 1px solid var(--gray-300); border-radius: 6px;">
+                    </div>
+                    <div class="form-group">
+                        <label for="fissionRequirement">裂变要求</label>
+                        <textarea id="fissionRequirement" rows="2" placeholder="例如：同一理念，不同场景" style="width: 100%; padding: 0.5rem; border: 1px solid var(--gray-300); border-radius: 6px;"></textarea>
+                    </div>
+                </div>
+
                 <div style="background: var(--gray-100); padding: 1rem; border-radius: 8px; margin-top: 1rem;">
                     <p style="font-size: 0.85rem; color: var(--gray-600);">
-                        <strong>提示：</strong>数据将被关联到当前任务，然后可以启动 AI 审核流程。
+                        <strong>提示：</strong>数据将被关联到当前任务，然后根据配置自动启动 AI 审核流程。
                     </p>
                 </div>
             </div>
@@ -753,13 +834,41 @@
                 return;
             }
 
+            // 构建配置参数
+            const options = {
+                aiReviewConfig: {
+                    enabled: document.getElementById('aiReviewEnabled').checked,
+                    maxRounds: parseInt(document.getElementById('aiReviewMaxRounds').value),
+                    passThreshold: parseFloat(document.getElementById('aiReviewPassThreshold').value),
+                    autoOptimize: document.getElementById('aiAutoOptimize').checked
+                },
+                manualReviewConfig: {
+                    enabled: document.getElementById('manualReviewEnabled').checked,
+                    scope: document.getElementById('manualReviewScope').value,
+                    optimizationEnabled: document.getElementById('manualOptimizationEnabled').checked
+                },
+                fissionConfig: null
+            };
+
+            // 裂变配置
+            if (document.getElementById('fissionEnabled').checked) {
+                options.fissionConfig = {
+                    enabled: true,
+                    count: parseInt(document.getElementById('fissionCount').value),
+                    requirement: document.getElementById('fissionRequirement').value || '同一理念，不同场景'
+                };
+            }
+
             try {
                 showToast('正在导入数据...', 'success');
 
                 const response = await fetch(`${API_BASE}/task/${taskId}/import`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ source_batch_id: sourceBatchId })
+                    body: JSON.stringify({
+                        source_batch_id: sourceBatchId,
+                        options: options
+                    })
                 });
 
                 const result = await response.json();

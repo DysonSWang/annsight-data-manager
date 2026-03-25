@@ -114,13 +114,24 @@ class FinetuningExportService {
                         content: msg.content
                     });
                 } else if (msg.role === 'assistant') {
-                    // 为 assistant 回复添加<think>思考标签
-                    const thinkingContent = this.generateThinkingContent(data, msg.content);
-                    const assistantContent = `<think>\n${thinkingContent}\n</think>\n\n${msg.content}`;
-                    messages.push({
-                        role: 'assistant',
-                        content: assistantContent
-                    });
+                    // 检查回复是否已包含<think>标签
+                    const hasThinkingTag = msg.content.includes('<think>') && msg.content.includes('</think>');
+
+                    if (hasThinkingTag) {
+                        // 已有思考标签，直接使用
+                        messages.push({
+                            role: 'assistant',
+                            content: msg.content
+                        });
+                    } else {
+                        // 没有思考标签，生成默认的
+                        const thinkingContent = this.generateThinkingContent(data, msg.content);
+                        const assistantContent = `<think>\n${thinkingContent}\n</think>\n\n${msg.content}`;
+                        messages.push({
+                            role: 'assistant',
+                            content: assistantContent
+                        });
+                    }
                 }
             }
         } else {

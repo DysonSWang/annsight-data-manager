@@ -333,7 +333,31 @@
                 <div class="form-actions">
                     <button class="btn btn-success" onclick="submitManualReview('approved')">✓ 通过</button>
                     <button class="btn btn-danger" onclick="submitManualReview('rejected')">✗ 拒绝</button>
-                    <button class="btn btn-warning" onclick="submitManualReview('request_optimization')">需要优化</button>
+                    <button class="btn btn-secondary" onclick="showOptimizeModal()">✨ 优化</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 优化弹窗 -->
+        <div id="optimizeModal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 3000;">
+            <div style="max-width: 600px; margin: 4rem auto; background: white; border-radius: 12px; padding: 1.5rem; box-shadow: 0 20px 60px rgba(0,0,0,0.3);">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem;">
+                    <h3 style="margin: 0; font-size: 1.25rem;">✨ AI 优化</h3>
+                    <button onclick="closeOptimizeModal()" style="border: none; background: none; font-size: 1.5rem; cursor: pointer; color: var(--gray-600);">&times;</button>
+                </div>
+                <div class="form-group">
+                    <label for="optimizePrompt">优化提示词</label>
+                    <textarea id="optimizePrompt" rows="5" placeholder="请输入优化要求，例如：&#10;1. 请补充职场场景的例子&#10;2. 增加对话示例&#10;3. 改进表达的准确性..." style="width: 100%; padding: 0.75rem; border: 1px solid var(--gray-300); border-radius: 6px; font-size: 0.9rem; font-family: inherit;"></textarea>
+                </div>
+                <div class="form-group">
+                    <label style="display: flex; align-items: center; gap: 0.5rem;">
+                        <input type="checkbox" id="recordFeedback" checked style="width: auto;">
+                        记录修改建议到反馈日志（用于优化提示词）
+                    </label>
+                </div>
+                <div style="display: flex; gap: 0.75rem; justify-content: flex-end; margin-top: 1rem;">
+                    <button class="btn btn-secondary" onclick="closeOptimizeModal()">取消</button>
+                    <button class="btn btn-primary" onclick="submitOptimize()">执行优化</button>
                 </div>
             </div>
         </div>
@@ -586,6 +610,57 @@
             document.body.appendChild(toast);
             setTimeout(() => toast.remove(), 3000);
         }
+
+        function showOptimizeModal() {
+            document.getElementById('optimizeModal').style.display = 'block';
+        }
+
+        function closeOptimizeModal() {
+            document.getElementById('optimizeModal').style.display = 'none';
+            document.getElementById('optimizePrompt').value = '';
+        }
+
+        async function submitOptimize() {
+            const prompt = document.getElementById('optimizePrompt').value;
+            const recordFeedback = document.getElementById('recordFeedback').checked;
+
+            if (!prompt.trim()) {
+                showToast('请输入优化提示词', 'error');
+                return;
+            }
+
+            try {
+                // 关闭弹窗
+                closeOptimizeModal();
+                showToast('正在优化...', 'success');
+
+                const response = await fetch(`${API_BASE}/task/${taskId}/data/${dataId}/optimize`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ prompt, recordFeedback })
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    showToast('优化成功！', 'success');
+                    // 刷新页面显示优化结果
+                    setTimeout(() => loadDataDetail(), 1000);
+                } else {
+                    throw new Error(result.error);
+                }
+
+            } catch (error) {
+                showToast('优化失败：' + error.message, 'error');
+            }
+        }
+
+        // 点击弹窗外部关闭
+        document.getElementById('optimizeModal')?.addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeOptimizeModal();
+            }
+        });
     </script>
 </body>
 </html>

@@ -271,9 +271,17 @@ class EtlService {
             // 使用缓存的处理器实例
             const processors = this._getProcessors();
 
-            // 根据是否有 purposes 参数决定是否启用裂变模式
+            // 根据 fissionConfig.enabled 判断是否启用裂变
             const { purposes, fissionConfig, rawDataId } = metadata;
-            const useFission = purposes && purposes.length > 0;
+
+            // 前端传来的 fissionConfig 格式：{ enabled, purposes, config }
+            // config 格式：{ rag: { count, requirement }, finetuning: { count, requirement }, ... }
+            const useFission = fissionConfig && fissionConfig.enabled === true;
+
+            // 将前端配置转换为后端期望的格式
+            const normalizedFissionConfig = useFission && fissionConfig?.config
+                ? fissionConfig.config  // 直接使用 config 对象
+                : null;
 
             // 创建 Pipeline 时选择配置
             const pipelineConfig = useFission ? 'fission' : 'text';
@@ -285,11 +293,11 @@ class EtlService {
                 sourceType: metadata.source || 'upload',
                 batchId: metadata.batchId || 'manual',
                 purposes: purposes || ['rag'],
-                fissionConfig,
+                fissionConfig: normalizedFissionConfig,
                 rawDataId, // 传递给 Pipeline 用于更新 processing_status
                 pool: this.pool
             };
-            console.log('[ETL] processText initialContext:', { batchId: initialContext.batchId, source: initialContext.sourceType, rawDataId });
+            console.log('[ETL] processText initialContext:', { batchId: initialContext.batchId, source: initialContext.sourceType, rawDataId, useFission });
 
             const result = await pipeline.execute(initialContext);
 
@@ -329,6 +337,97 @@ class EtlService {
             return {
                 success: false,
                 error: error.message
+            };
+        }
+    }
+
+    /**
+     * 对已加工的数据执行基于原理的裂变
+     * 在微调环节，根据任务目的进行场景裂变
+     * @param {object} data - 加工数据对象 { id, type, category, title, content, conversation }
+     * @param {object} options - 裂变配置
+     * @param {number} options.count - 裂变数量
+     * @param {string} options.requirement - 裂变需求说明
+     * @param {string} options.purpose - 微调目的
+     * @returns {Promise<object>} 裂变结果 { success, count, items, fissionCount }
+     */
+    async runPrincipleBasedFission(data, options = {}) {
+        const { count = 6, requirement = '', purpose = '' } = options;
+
+        console.log('[ETL] runPrincipleBasedFission called:', {
+            dataId: data.id,
+            count,
+            requirement: requirement.slice(0, 50),
+            purpose
+        });
+
+        try {
+            // 使用缓存的处理器实例
+            const processors = this._getProcessors();
+
+            // 获取裂变处理器
+            const fissionProcessor = processors.find(p => p.getName() === 'l25-fission');
+            if (!fissionProcessor) {
+                throw new Error('裂变处理器未找到');
+            }
+
+            // 准备上下文
+            const content = data.content || data.title || '';
+            const conversation = data.conversation || null;
+
+            // 构建裂变配置
+            const fissionConfig = {
+                finetuning: {
+                    count,
+                    requirement
+                }
+            };
+
+            // 调用裂变处理器
+            const fissionContext = {
+                cleanedText: content,
+                conversation,
+                sourceType: data.type || 'finetuning',
+                purposes: ['finetuning'],
+                fissionConfig,
+                batchId: data.batch_id || `ft-${Date.now()}`,
+                source: purpose || 'finetuning-task'
+            };
+
+            const fissionResult = await fissionProcessor.process(fissionContext);
+
+            // 保存裂变后的数据
+            const savedDataIds = [];
+            for (const item of fissionResult.items || []) {
+                const id = await this._saveSingleProcessedData({
+                    rawDataId: null,
+                    source_data_id: data.id,  // 记录来源
+                    task_context: { purpose, fromFission: true },
+                    fission_config: fissionConfig,
+                    ...item,
+                    purposes: ['finetuning']
+                });
+                savedDataIds.push(id);
+            }
+
+            console.log('[ETL] runPrincipleBasedFission completed:', {
+                fissionCount: savedDataIds.length,
+                dataIds: savedDataIds
+            });
+
+            return {
+                success: true,
+                count: savedDataIds.length,
+                items: fissionResult.items,
+                dataIds: savedDataIds
+            };
+
+        } catch (error) {
+            console.error('[ETL] runPrincipleBasedFission failed:', error.message);
+            return {
+                success: false,
+                error: error.message,
+                data_id: data.id
             };
         }
     }

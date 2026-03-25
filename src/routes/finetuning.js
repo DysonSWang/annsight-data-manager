@@ -138,19 +138,39 @@ async function getTask(req, res) {
 async function importData(req, res) {
     try {
         const { id } = req.params;
-        const { source_batch_id } = req.body;
+        const { source_batch_id, options } = req.body;
 
         if (!source_batch_id) {
             return res.status(400).json({ error: '源批次 ID 不能为空' });
         }
 
         const service = new FinetuningTaskService(req.app.locals.pool);
-        const result = await service.importData(id, source_batch_id);
+        const result = await service.importData(id, source_batch_id, options || {});
 
         res.json(result);
 
     } catch (error) {
         console.error('导入数据失败:', error);
+        res.status(500).json({ error: error.message });
+    }
+}
+
+/**
+ * 执行裂变
+ * POST /api/finetuning/task/:id/fission
+ */
+async function runFission(req, res) {
+    try {
+        const { id } = req.params;
+        const { count, requirement, fissionConfig } = req.body;
+
+        const service = new FinetuningTaskService(req.app.locals.pool);
+        const result = await service.runFission(id, fissionConfig || { count, requirement });
+
+        res.json(result);
+
+    } catch (error) {
+        console.error('执行裂变失败:', error);
         res.status(500).json({ error: error.message });
     }
 }
@@ -353,6 +373,97 @@ async function submitManualReview(req, res) {
 }
 
 /**
+ * 人工优化（带提示词）
+ * POST /api/finetuning/task/:id/data/:dataId/optimize
+ */
+async function manualOptimize(req, res) {
+    try {
+        const { id: taskId, dataId } = req.params;
+        const { prompt, recordFeedback = true } = req.body;
+
+        if (!prompt) {
+            return res.status(400).json({ error: '优化提示词不能为空' });
+        }
+
+        const service = new FinetuningTaskService(req.app.locals.pool);
+        const result = await service.optimizeWithPrompt(
+            taskId,
+            dataId,
+            prompt,
+            recordFeedback,
+            'admin'
+        );
+
+        res.json(result);
+
+    } catch (error) {
+        console.error('人工优化失败:', error);
+        res.status(500).json({ error: error.message });
+    }
+}
+
+/**
+ * 获取反馈日志
+ * GET /api/finetuning/task/:id/feedback-logs
+ */
+async function getFeedbackLogs(req, res) {
+    try {
+        const { id: taskId } = req.params;
+        const { dataId, suggestionType, notApplied } = req.query;
+
+        const feedbackLogRepo = new (require('../repository/ReviewFeedbackLogRepository'))(req.app.locals.pool);
+
+        let logs;
+        if (dataId) {
+            logs = await feedbackLogRepo.findByDataId(dataId);
+        } else {
+            logs = await feedbackLogRepo.findByTaskId(taskId, {
+                suggestionType: suggestionType || null,
+                notApplied: notApplied === 'true'
+            });
+        }
+
+        res.json({
+            success: true,
+            logs,
+            count: logs.length
+        });
+
+    } catch (error) {
+        console.error('获取反馈日志失败:', error);
+        res.status(500).json({ error: error.message });
+    }
+}
+
+/**
+ * 应用反馈到提示词
+ * POST /api/finetuning/task/:id/feedback/apply
+ */
+async function applyFeedback(req, res) {
+    try {
+        const { id: taskId } = req.params;
+        const { logIds } = req.body;  // 日志 ID 数组
+
+        if (!logIds || !Array.isArray(logIds)) {
+            return res.status(400).json({ error: '日志 ID 列表不能为空' });
+        }
+
+        const feedbackLogRepo = new (require('../repository/ReviewFeedbackLogRepository'))(req.app.locals.pool);
+        const count = await feedbackLogRepo.batchMarkAsApplied(logIds.map(id => parseInt(id)));
+
+        res.json({
+            success: true,
+            count,
+            message: `已标记 ${count} 条反馈为已应用`
+        });
+
+    } catch (error) {
+        console.error('应用反馈失败:', error);
+        res.status(500).json({ error: error.message });
+    }
+}
+
+/**
  * 获取待人工审核的数据列表
  * GET /api/finetuning/task/:id/manual-review/list
  */
@@ -469,10 +580,18 @@ async function exportData(req, res) {
 
         const exportService = new FinetuningExportService(req.app.locals.pool);
 
-        // 获取已审核通过的数据
+        // 获取已审核通过的数据 - 按任务批次过滤
         let exportDataIds = null;
         if (dataIds) {
             exportDataIds = Array.isArray(dataIds) ? dataIds : [dataIds];
+        } else {
+            // 没有指定 dataIds 时，获取当前任务批次的所有已审核数据
+            const batchDataQuery = `
+                SELECT id FROM processed_data
+                WHERE batch_id = $1 AND review_status = 'approved'
+            `;
+            const batchDataResult = await req.app.locals.pool.query(batchDataQuery, [task.batch_id]);
+            exportDataIds = batchDataResult.rows.map(r => r.id);
         }
 
         const result = await exportService.exportToJsonl(exportDataIds, format);
@@ -510,6 +629,7 @@ router.post('/task', createTask);
 router.get('/task', listTasks);
 router.get('/task/:id', getTask);
 router.post('/task/:id/import', importData);
+router.post('/task/:id/fission', runFission);  // 新增裂变 API
 router.post('/task/:id/review/start', startReview);
 router.get('/task/:id/review/status', getReviewStatus);
 router.post('/task/:id/optimize/start', startOptimize);
@@ -517,6 +637,9 @@ router.post('/task/:id/manual-review/start', startManualReview);
 router.get('/task/:id/data', getTaskData);
 router.get('/task/:id/data/:dataId', getDataDetail);
 router.post('/task/:id/data/:dataId/manual-review', submitManualReview);
+router.post('/task/:id/data/:dataId/optimize', manualOptimize);  // 人工优化 API
+router.get('/task/:id/feedback-logs', getFeedbackLogs);  // 反馈日志 API
+router.post('/task/:id/feedback/apply', applyFeedback);  // 应用反馈 API
 router.get('/task/:id/manual-review/list', getManualReviewList);
 router.post('/task/:id/complete', completeTask);
 router.delete('/task/:id', deleteTask);

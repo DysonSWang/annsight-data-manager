@@ -223,7 +223,9 @@ async function batchTextUpload(req, res) {
 
         for (const text of texts) {
             const id = `rd-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
-            const contentMd5 = require('crypto').createHash('md5').update(text).digest('hex');
+            // 从对象中提取纯文本内容进行 MD5 计算
+            const textContent = typeof text === 'string' ? text : (text.content || '');
+            const contentMd5 = require('crypto').createHash('md5').update(textContent).digest('hex');
 
             try {
                 // 1. 【第一层去重】检查 MD5 是否已存在
@@ -266,12 +268,33 @@ async function batchTextUpload(req, res) {
                 await repo.updateProcessingStatus(id, 'processing_l1_clean');
 
                 // 3. 直接处理文本（跳过原始数据流程）
-                const processResult = await etlService.processText(text, {
+                // 从对象中提取纯文本内容（兼容字符串和对象两种格式）
+                const textContent = typeof text === 'string' ? text : (text.content || '');
+                console.log('[batchTextUpload] 开始处理文本:', {
+                    batchId,
+                    source,
+                    purposes: selectedPurposes,
+                    fissionConfig: JSON.stringify(fissionConfig),
+                    textContentLength: textContent.length
+                });
+                const processResult = await etlService.processText(textContent, {
                     source,
                     batchId,
                     purposes: selectedPurposes,
                     fissionConfig, // 传递裂变配置
-                    rawDataId: id // 传递 rawDataId 用于更新 processing_status
+                    rawDataId: id, // 传递 rawDataId 用于更新 processing_status
+                    // 传递故事的元数据（标题、分类、类型等）
+                    storyMetadata: {
+                        title: text.title || '',
+                        category: text.category || '',
+                        type: text.type || '',
+                        source: text.source || ''
+                    }
+                });
+                console.log('[batchTextUpload] processResult:', {
+                    success: processResult.success,
+                    processedDataIds: processResult.processedDataIds,
+                    error: processResult.error
                 });
 
                 // 3.5 处理完成后更新状态
@@ -840,14 +863,14 @@ async function getStats(req, res) {
     }
 }
 
-// 注册路由
+// 注册路由（注意顺序：具体路由在前，动态路由在后）
 router.get('/list', listRawData);
 router.get('/batches', listBatches);
 router.get('/stats', getStats);
-router.get('/:id', getRawData);
 router.post('/batch-upload', batchUpload);
 router.post('/batch-text', batchTextUpload);
 router.post('/upload', upload.array('files', 10), uploadHandler);
+router.get('/:id', getRawData);
 router.delete('/:id', deleteRawData);
 router.patch('/:id/status', updateStatus);
 router.post('/:id/review', updateReview);

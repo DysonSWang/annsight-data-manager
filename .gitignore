@@ -26,3 +26,4 @@ temp/
 # 数据库
 *.sqlite
 *.db
+.gstack/
