@@ -132,6 +132,32 @@ async function getTask(req, res) {
 }
 
 /**
+ * 获取可用于导入的源批次列表
+ * GET /api/finetuning/source-batches
+ */
+async function listSourceBatches(req, res) {
+    try {
+        const query = `
+            SELECT
+                batch_id as "batchId",
+                COUNT(*) as "count",
+                COUNT(*) FILTER (WHERE review_status = 'approved') as "approved",
+                COUNT(*) FILTER (WHERE review_status = 'rejected') as "rejected",
+                MIN(created_at) as "createdAt"
+            FROM processed_data
+            WHERE deleted_at IS NULL
+            GROUP BY batch_id
+            ORDER BY MIN(created_at) DESC
+        `;
+        const result = await req.app.locals.pool.query(query);
+        res.json({ batches: result.rows });
+    } catch (error) {
+        console.error('Error listing source batches:', error);
+        res.status(500).json({ error: error.message });
+    }
+}
+
+/**
  * 导入数据到任务
  * POST /api/finetuning/task/:id/import
  */
@@ -625,6 +651,7 @@ async function exportData(req, res) {
 }
 
 // 注册路由
+router.get('/source-batches', listSourceBatches);  // 源批次列表 API
 router.post('/task', createTask);
 router.get('/task', listTasks);
 router.get('/task/:id', getTask);
@@ -634,8 +661,8 @@ router.post('/task/:id/review/start', startReview);
 router.get('/task/:id/review/status', getReviewStatus);
 router.post('/task/:id/optimize/start', startOptimize);
 router.post('/task/:id/manual-review/start', startManualReview);
+router.get('/task/:id/data/:dataId', getDataDetail);  // More specific route first
 router.get('/task/:id/data', getTaskData);
-router.get('/task/:id/data/:dataId', getDataDetail);
 router.post('/task/:id/data/:dataId/manual-review', submitManualReview);
 router.post('/task/:id/data/:dataId/optimize', manualOptimize);  // 人工优化 API
 router.get('/task/:id/feedback-logs', getFeedbackLogs);  // 反馈日志 API
