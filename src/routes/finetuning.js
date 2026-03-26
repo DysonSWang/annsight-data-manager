@@ -293,17 +293,18 @@ async function getTaskData(req, res) {
             return res.status(404).json({ error: '任务不存在' });
         }
 
-        // 查询任务关联批次的数据
+        // 查询任务关联的数据：支持 batch_id（源数据）和 finetuning_task_id（V9 素材）
         let query = `
             SELECT pd.*,
                    (SELECT MAX(rr.ai_score) FROM review_rounds rr WHERE rr.data_id = pd.id AND rr.task_id = $1) as max_ai_score,
                    (SELECT MAX(rr.manual_decision) FROM review_rounds rr WHERE rr.data_id = pd.id AND rr.task_id = $1 AND rr.round_type = 'manual_review') as manual_decision
             FROM processed_data pd
-            WHERE pd.batch_id = $1 AND pd.deleted_at IS NULL
+            WHERE pd.deleted_at IS NULL
+              AND (pd.batch_id = $2 OR pd.finetuning_task_id = $1)
         `;
 
         const offset = (parseInt(page) - 1) * parseInt(pageSize);
-        const values = [task.batch_id];
+        const values = [id, task.batch_id];
 
         // 状态筛选
         if (status) {
@@ -322,8 +323,8 @@ async function getTaskData(req, res) {
         const result = await req.app.locals.pool.query(query, values);
 
         // 获取总数
-        const countQuery = `SELECT COUNT(*) FROM processed_data WHERE batch_id = $1 AND deleted_at IS NULL`;
-        const countResult = await req.app.locals.pool.query(countQuery, [task.batch_id]);
+        const countQuery = `SELECT COUNT(*) FROM processed_data WHERE deleted_at IS NULL AND (batch_id = $1 OR finetuning_task_id = $2)`;
+        const countResult = await req.app.locals.pool.query(countQuery, [task.batch_id, id]);
 
         res.json({
             success: true,
