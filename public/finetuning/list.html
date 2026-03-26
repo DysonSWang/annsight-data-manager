@@ -63,6 +63,7 @@
 
         .nav-tab:hover { background: rgba(255,255,255,0.2); }
         .nav-tab.active { background: white; color: var(--primary); }
+        .nav-tab-external::after { content: ' →'; font-size: 0.8em; }
 
         /* 主容器 */
         .container { max-width: 1600px; margin: 0 auto; padding: 1.5rem; }
@@ -376,7 +377,7 @@
                 <a href="/" class="nav-tab">数据审核</a>
                 <a href="/raw-data.html" class="nav-tab">源数据</a>
                 <a href="/stats.html" class="nav-tab">统计</a>
-                <a href="/spotcheck.html" class="nav-tab">抽检</a>
+                <a href="/materials.html" class="nav-tab nav-tab-external">素材库</a>
                 <a href="/finetuning/list.html" class="nav-tab active">微调任务</a>
             </nav>
         </div>

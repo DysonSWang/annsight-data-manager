@@ -86,6 +86,10 @@ app.use('/api/raw-data', authMiddleware.optional, rawDataRoutes);
 const finetuningRoutes = require('./routes/finetuning');
 app.use('/api/finetuning', authMiddleware.optional, finetuningRoutes);
 
+// V9 素材管理路由
+const materialsRoutes = require('./routes/materials');
+app.use('/api/materials', authMiddleware.optional, materialsRoutes);
+
 // 健康检查
 app.get('/api/health', (req, res) => {
     res.json({ status: 'ok', timestamp: new Date().toISOString() });

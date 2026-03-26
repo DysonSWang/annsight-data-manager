@@ -45,7 +45,14 @@ async function migrate() {
 
         // 按顺序执行迁移文件
         await runMigration('001-initial-schema.sql', '初始表结构创建完成');
+        await runMigration('002-add-purpose-column.sql', 'purposes 列添加完成');
         await runMigration('002-finetuning-task.sql', '微调任务表结构创建完成');
+        await runMigration('003-logical-coherence-refactor.sql', '逻辑连贯性重构完成');
+        await runMigration('004-add-processing-status.sql', '处理状态列添加完成');
+        await runMigration('005-review-workflow-optimization.sql', '审核工作流优化完成');
+        await runMigration('006-raw-data-review.sql', '源数据审核扩展完成');
+        await runMigration('007-add-material-columns.sql', 'V9 素材管理扩展完成');
+        await runMigration('008-add-finettuning-task-reference.sql', 'V9 素材关联微调任务完成');
 
         console.log('\n✅ 所有迁移已完成！');
 
