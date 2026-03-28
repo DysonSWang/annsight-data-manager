@@ -1,0 +1,703 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AnnSight - 按源数据查看素材</title>
+    <style>
+        :root {
+            --primary: #667eea;
+            --primary-dark: #5a67d8;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --gray-50: #f9fafb;
+            --gray-100: #f3f4f6;
+            --gray-200: #e5e7eb;
+            --gray-300: #d1d5db;
+            --gray-600: #4b5563;
+            --gray-700: #374151;
+            --gray-900: #111827;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--gray-100);
+            color: var(--gray-700);
+            line-height: 1.6;
+        }
+
+        /* 顶部导航 */
+        .header {
+            background: linear-gradient(135deg, var(--primary) 0%, #764ba2 100%);
+            color: white;
+            padding: 1rem 2rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .header-content {
+            max-width: 1600px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header h1 { font-size: 1.5rem; font-weight: 700; }
+
+        .nav-tabs { display: flex; gap: 0.5rem; }
+
+        .nav-tab {
+            padding: 0.5rem 1rem;
+            border: none;
+            background: rgba(255,255,255,0.1);
+            color: white;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+            text-decoration: none;
+        }
+
+        .nav-tab:hover { background: rgba(255,255,255,0.2); }
+        .nav-tab.active { background: white; color: var(--primary); }
+
+        /* 主容器 */
+        .container { max-width: 1600px; margin: 0 auto; padding: 1.5rem; }
+
+        /* 统计卡片 */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 1.25rem;
+            border-radius: 10px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        .stat-card .value {
+            font-size: 1.75rem;
+            font-weight: 700;
+            color: var(--gray-900);
+        }
+
+        .stat-card .label {
+            font-size: 0.875rem;
+            color: var(--gray-600);
+            margin-top: 0.25rem;
+        }
+
+        .stat-card.highlight {
+            background: linear-gradient(135deg, var(--primary) 0%, #764ba2 100%);
+        }
+
+        .stat-card.highlight .value,
+        .stat-card.highlight .label { color: white; }
+
+        /* 内容区 */
+        .content-card {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            overflow: hidden;
+            margin-bottom: 1.5rem;
+        }
+
+        .content-card-header {
+            padding: 1rem 1.25rem;
+            border-bottom: 1px solid var(--gray-200);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        .content-card-header h2 {
+            font-size: 1.125rem;
+            font-weight: 600;
+            color: var(--gray-900);
+        }
+
+        .filters {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+
+        .filter-input {
+            padding: 0.5rem 0.75rem;
+            border: 1px solid var(--gray-300);
+            border-radius: 6px;
+            font-size: 0.875rem;
+            min-width: 120px;
+        }
+
+        /* 表格 */
+        table { width: 100%; border-collapse: collapse; }
+
+        th, td {
+            padding: 0.75rem 1.25rem;
+            text-align: left;
+            border-bottom: 1px solid var(--gray-200);
+        }
+
+        th {
+            background: var(--gray-50);
+            font-weight: 600;
+            color: var(--gray-700);
+            font-size: 0.85rem;
+        }
+
+        tr:hover { background: var(--gray-50); }
+        tr.clickable { cursor: pointer; }
+
+        /* 标签 */
+        .badge {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 999px;
+            font-size: 0.75rem;
+            font-weight: 500;
+            margin-right: 0.25rem;
+        }
+
+        .badge-sft { background: #dbeafe; color: #1e40af; }
+        .badge-rag { background: #d1fae5; color: #065f46; }
+        .badge-dpo { background: #fed7aa; color: #92400e; }
+        .badge-story { background: #e9d5ff; color: #6b21a8; }
+        .badge-content { background: #fbcfe8; color: #9f1239; }
+
+        .badge-A { background: #dbeafe; color: #1e40af; }
+        .badge-B { background: #d1fae5; color: #065f46; }
+        .badge-C { background: #fef3c7; color: #92400e; }
+        .badge-D { background: #e9d5ff; color: #6b21a8; }
+        .badge-E { background: #fbcfe8; color: #9f1239; }
+        .badge-F { background: #fecaca; color: #991b1b; }
+
+        /* 分页 */
+        .pagination {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem 1.25rem;
+            border-top: 1px solid var(--gray-200);
+        }
+
+        .pagination-info { color: var(--gray-600); font-size: 0.875rem; }
+        .pagination-buttons { display: flex; gap: 0.5rem; }
+
+        .pagination-btn {
+            padding: 0.5rem 1rem;
+            border: 1px solid var(--gray-300);
+            background: white;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.875rem;
+        }
+
+        .pagination-btn:hover:not(:disabled) { background: var(--gray-50); }
+        .pagination-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        /* 模态框 */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal {
+            background: white;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 1000px;
+            max-height: 90vh;
+            overflow: auto;
+        }
+
+        .modal-header {
+            padding: 1.25rem;
+            border-bottom: 1px solid var(--gray-200);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            background: white;
+            z-index: 10;
+        }
+
+        .modal-header h3 { font-size: 1.25rem; color: var(--gray-900); }
+
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: var(--gray-600);
+        }
+
+        .modal-body { padding: 1.25rem; }
+
+        /* 源数据详情 */
+        .source-header {
+            background: var(--gray-50);
+            padding: 1.25rem;
+            border-radius: 8px;
+            margin-bottom: 1.5rem;
+        }
+
+        .source-header h4 {
+            font-size: 1.1rem;
+            color: var(--gray-900);
+            margin-bottom: 0.75rem;
+        }
+
+        .source-meta {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 0.75rem;
+        }
+
+        .source-meta .item {
+            font-size: 0.875rem;
+        }
+
+        .source-meta .label {
+            color: var(--gray-600);
+            font-size: 0.75rem;
+        }
+
+        .source-meta .value {
+            color: var(--gray-900);
+            font-weight: 500;
+        }
+
+        /* 素材分组 */
+        .material-section {
+            margin-bottom: 1.5rem;
+        }
+
+        .material-section-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.75rem 1rem;
+            background: var(--gray-50);
+            border-radius: 8px;
+            margin-bottom: 0.75rem;
+        }
+
+        .material-section-title {
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--gray-900);
+        }
+
+        .material-count {
+            background: var(--primary);
+            color: white;
+            padding: 0.125rem 0.625rem;
+            border-radius: 999px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .material-card {
+            border: 1px solid var(--gray-200);
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 0.75rem;
+        }
+
+        .material-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 0.5rem;
+        }
+
+        .material-card-title {
+            font-size: 0.95rem;
+            font-weight: 500;
+            color: var(--gray-900);
+        }
+
+        .material-card-meta {
+            display: flex;
+            gap: 0.75rem;
+            font-size: 0.8rem;
+            color: var(--gray-600);
+        }
+
+        .material-card-content {
+            background: var(--gray-50);
+            padding: 0.75rem;
+            border-radius: 6px;
+            font-size: 0.875rem;
+            line-height: 1.7;
+            max-height: 150px;
+            overflow-y: auto;
+        }
+
+        /* 加载状态 */
+        .loading {
+            text-align: center;
+            padding: 2rem;
+            color: var(--gray-600);
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 2px solid var(--gray-300);
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* 空状态 */
+        .empty-state {
+            text-align: center;
+            padding: 3rem;
+            color: var(--gray-600);
+        }
+
+        .empty-state-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="header-content">
+            <h1>AnnSight - 按源数据查看素材</h1>
+            <nav class="nav-tabs">
+                <a href="/" class="nav-tab">数据审核</a>
+                <a href="/raw-data.html" class="nav-tab">源数据管理</a>
+                <a href="/spotcheck.html" class="nav-tab">人工抽检</a>
+                <a href="/materials.html" class="nav-tab">素材库</a>
+                <a href="/materials-by-source.html" class="nav-tab active">按源查看</a>
+                <a href="/finetuning/list.html" class="nav-tab">微调任务</a>
+                <a href="/stats.html" class="nav-tab">统计看板</a>
+            </nav>
+        </div>
+    </header>
+
+    <div class="container">
+        <!-- 统计卡片 -->
+        <div class="stats-grid">
+            <div class="stat-card highlight">
+                <div class="value" id="totalSources">-</div>
+                <div class="label">有素材的源视频</div>
+            </div>
+            <div class="stat-card">
+                <div class="value" id="totalMaterials">-</div>
+                <div class="label">素材总数</div>
+            </div>
+            <div class="stat-card">
+                <div class="value" id="avgPerSource">-</div>
+                <div class="label">平均每源素材</div>
+            </div>
+            <div class="stat-card">
+                <div class="value" id="maxPerSource">-</div>
+                <div class="label">单源最多素材</div>
+            </div>
+        </div>
+
+        <!-- 素材列表（按源分组） -->
+        <div class="content-card">
+            <div class="content-card-header">
+                <h2>按源视频分组的素材</h2>
+                <div class="filters">
+                    <select class="filter-input" id="typeFilter" onchange="loadGroupedList()">
+                        <option value="">全部类型</option>
+                        <option value="sft">SFT</option>
+                        <option value="rag">RAG</option>
+                        <option value="dpo">DPO</option>
+                        <option value="story">故事</option>
+                        <option value="content">内容</option>
+                    </select>
+                    <select class="filter-input" id="contentTypeFilter" onchange="loadGroupedList()">
+                        <option value="">全部分类</option>
+                        <option value="A">A-公式教学</option>
+                        <option value="B">B-话术演示</option>
+                        <option value="C">C-策略建议</option>
+                        <option value="D">D-金句道理</option>
+                        <option value="E">E-心理学概念</option>
+                        <option value="F">F-问答技巧</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="data-table">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>源视频标题</th>
+                            <th>素材数</th>
+                            <th>素材类型</th>
+                            <th>V9 分类</th>
+                            <th>平均质量</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="groupedTableBody">
+                        <tr><td colspan="6" class="loading"><span class="spinner"></span> 加载中...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="pagination">
+                <div class="pagination-info" id="paginationInfo">共 0 条</div>
+                <div class="pagination-buttons">
+                    <button class="pagination-btn" id="prevBtn" onclick="changePage(-1)" disabled>上一页</button>
+                    <button class="pagination-btn" id="nextBtn" onclick="changePage(1)">下一页</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 详情模态框 -->
+    <div class="modal-overlay" id="detailModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>源数据素材详情</h3>
+                <button class="modal-close" onclick="hideDetailModal()">&times;</button>
+            </div>
+            <div class="modal-body" id="detailContent">
+                <div class="loading"><span class="spinner"></span> 加载中...</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentPage = 1;
+        let currentStats = null;
+
+        // 加载统计
+        async function loadStats() {
+            try {
+                const res = await fetch('/api/materials/stats');
+                const data = await res.json();
+                currentStats = data.data;
+
+                const total = data.data.total || 0;
+                const byType = data.data.byType || {};
+                const sftCount = byType.sft || 0;
+                const ragCount = byType.rag || 0;
+                const dpoCount = byType.dpo || 0;
+                const storyCount = byType.story || 0;
+                const contentCount = byType.content || 0;
+
+                // 估算有素材的源视频数（需要调用新 API）
+                const groupedRes = await fetch('/api/materials/grouped-by-raw-data?page=1&pageSize=1');
+                const groupedData = await groupedRes.json();
+                const sourceCount = groupedData.pagination?.total || 0;
+
+                document.getElementById('totalSources').textContent = sourceCount;
+                document.getElementById('totalMaterials').textContent = total;
+                document.getElementById('avgPerSource').textContent = sourceCount > 0 ? (total / sourceCount).toFixed(1) : '0';
+                document.getElementById('maxPerSource').textContent = '-';
+            } catch (err) {
+                console.error('加载统计失败:', err);
+            }
+        }
+
+        // 加载分组列表
+        async function loadGroupedList() {
+            const typeFilter = document.getElementById('typeFilter').value;
+            const contentTypeFilter = document.getElementById('contentTypeFilter').value;
+
+            const params = new URLSearchParams({
+                page: currentPage,
+                pageSize: 20,
+                ...(typeFilter && { materialType: typeFilter }),
+                ...(contentTypeFilter && { contentType: contentTypeFilter })
+            });
+
+            try {
+                const res = await fetch(`/api/materials/grouped-by-raw-data?${params}`);
+                const data = await res.json();
+
+                const tbody = document.getElementById('groupedTableBody');
+
+                if (!data.data || data.data.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="6" class="loading">暂无数据</td></tr>';
+                    document.getElementById('paginationInfo').textContent = '共 0 条';
+                    return;
+                }
+
+                tbody.innerHTML = data.data.map(item => `
+                    <tr class="clickable" onclick="viewSourceDetail('${item.rawDataId}')">
+                        <td>
+                            <div style="max-width: 400px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${escapeHtml(item.videoTitle)}">
+                                ${escapeHtml(item.videoTitle)}
+                            </div>
+                        </td>
+                        <td><strong>${item.materialCount}</strong></td>
+                        <td>${item.materialTypes.map(t => `<span class="badge badge-${t}">${t}</span>`).join('')}</td>
+                        <td>${item.contentTypes.map(t => `<span class="badge badge-${t}">${t}</span>`).join('')}</td>
+                        <td>${item.avgQuality.toFixed(2)}</td>
+                        <td>
+                            <button class="btn btn-sm btn-primary" onclick="event.stopPropagation(); viewSourceDetail('${item.rawDataId}')">查看详情</button>
+                        </td>
+                    </tr>
+                `).join('');
+
+                document.getElementById('paginationInfo').textContent =
+                    `共 ${data.pagination.total} 条，第 ${data.pagination.page}/${data.pagination.totalPages || 1} 页`;
+
+                document.getElementById('prevBtn').disabled = currentPage <= 1;
+                document.getElementById('nextBtn').disabled = currentPage >= data.pagination.totalPages;
+
+            } catch (err) {
+                console.error('加载列表失败:', err);
+                document.getElementById('groupedTableBody').innerHTML =
+                    '<tr><td colspan="6" class="loading">加载失败</td></tr>';
+            }
+        }
+
+        function changePage(delta) {
+            currentPage += delta;
+            loadGroupedList();
+        }
+
+        // 查看源数据详情
+        async function viewSourceDetail(rawDataId) {
+            document.getElementById('detailModal').style.display = 'flex';
+            document.getElementById('detailContent').innerHTML = '<div class="loading"><span class="spinner"></span> 加载中...</div>';
+
+            try {
+                const res = await fetch(`/api/materials/by-raw-data/${rawDataId}`);
+                const data = await res.json();
+
+                if (!data.success || !data.data) {
+                    document.getElementById('detailContent').innerHTML = '<div class="empty-state">加载失败</div>';
+                    return;
+                }
+
+                const { rawData, materials, byType, stats } = data.data;
+
+                let html = `
+                    <div class="source-header">
+                        <h4>${escapeHtml(rawData.video_title || '未知视频')}</h4>
+                        <div class="source-meta">
+                            <div class="item">
+                                <div class="label">源数据 ID</div>
+                                <div class="value">${escapeHtml(rawData.id)}</div>
+                            </div>
+                            <div class="item">
+                                <div class="label">内容类型</div>
+                                <div class="value">${rawData.content_type || '-'}</div>
+                            </div>
+                            <div class="item">
+                                <div class="label">批次</div>
+                                <div class="value">${rawData.batch_id || '-'}</div>
+                            </div>
+                            <div class="item">
+                                <div class="label">素材总数</div>
+                                <div class="value">${stats.total}</div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+
+                // 按素材类型分组展示
+                const typeLabels = {
+                    sft: 'SFT 微调数据',
+                    rag: 'RAG 知识库',
+                    dpo: 'DPO 偏好数据',
+                    story: '故事素材',
+                    content: '内容素材'
+                };
+
+                Object.entries(byType || {}).forEach(([type, items]) => {
+                    if (items.length === 0) return;
+
+                    html += `
+                        <div class="material-section">
+                            <div class="material-section-header">
+                                <span class="material-section-title">${typeLabels[type] || type}</span>
+                                <span class="material-count">${items.length}条</span>
+                            </div>
+                    `;
+
+                    items.forEach(item => {
+                        html += `
+                            <div class="material-card">
+                                <div class="material-card-header">
+                                    <div class="material-card-title">${escapeHtml(item.title || '无标题')}</div>
+                                    <div>
+                                        <span class="badge badge-${item.content_type || ''}">${item.content_type || '-'}</span>
+                                        <span class="badge" style="background: ${item.review_status === 'approved' ? '#d1fae5' : item.review_status === 'rejected' ? '#fecaca' : '#fef3c7'}">
+                                            ${item.review_status || 'pending'}
+                                        </span>
+                                    </div>
+                                </div>
+                                <div class="material-card-meta">
+                                    <span>质量分：${item.quality_score ? item.quality_score.toFixed(2) : '-'}</span>
+                                    <span>源视频：${escapeHtml(item.source_video || '-')}</span>
+                                    <span>时间戳：${item.source_timestamp || '-'}</span>
+                                </div>
+                                <div class="material-card-content" style="margin-top: 0.5rem;">
+                                    ${escapeHtml(item.content || '无内容')}
+                                </div>
+                            </div>
+                        `;
+                    });
+
+                    html += `</div>`;
+                });
+
+                if (materials.length === 0) {
+                    html += '<div class="empty-state"><div class="empty-state-icon">📭</div>暂无素材</div>';
+                }
+
+                document.getElementById('detailContent').innerHTML = html;
+
+            } catch (err) {
+                document.getElementById('detailContent').innerHTML =
+                    '<div class="empty-state">加载失败：' + err.message + '</div>';
+            }
+        }
+
+        function hideDetailModal() {
+            document.getElementById('detailModal').style.display = 'none';
+        }
+
+        // 辅助函数
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // 初始化
+        loadStats();
+        loadGroupedList();
+    </script>
+</body>
+</html>

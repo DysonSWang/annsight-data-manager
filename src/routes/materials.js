@@ -496,11 +496,14 @@ async function batchUpdateMaterials(req, res) {
     }
 }
 
-// 注册路由
+// 注册路由 - 注意：动态路由 (/:id) 必须放在静态路由之后
 router.get('/list', listMaterials);
 router.get('/stats', getMaterialStats);
 router.get('/output/:pipeline', getPipelineOutput);
 router.get('/report', getReport);
+router.get('/grouped-by-raw-data', getGroupedByRawData);
+router.get('/by-raw-data/:rawDataId', getByRawDataId);
+router.get('/finetuning/task/:id/available-materials', getAvailableMaterialsForTask);
 router.get('/:id', getMaterial);
 router.put('/:id', updateMaterial);
 router.delete('/:id', deleteMaterial);
@@ -511,7 +514,70 @@ router.post('/extract/:pipeline', extractPipeline);
 router.post('/import', importMaterials);
 router.post('/batch-update', batchUpdateMaterials);
 
-// 微调任务关联
-router.get('/finetuning/task/:id/available-materials', getAvailableMaterialsForTask);
+/**
+ * 按源数据 ID 查看关联素材
+ * GET /api/materials/by-raw-data/:rawDataId
+ */
+async function getByRawDataId(req, res) {
+    try {
+        const { rawDataId } = req.params;
+
+        const repo = new MaterialRepository(req.app.locals.pool);
+        const result = await repo.findByRawDataId(rawDataId);
+
+        if (!result) {
+            return res.status(404).json({
+                success: false,
+                error: '源数据不存在'
+            });
+        }
+
+        res.json({
+            success: true,
+            data: result
+        });
+    } catch (error) {
+        console.error('获取源数据关联素材失败:', error.message);
+        res.status(500).json({
+            success: false,
+            error: error.message
+        });
+    }
+}
+
+/**
+ * 按源数据聚合查看素材列表
+ * GET /api/materials/grouped-by-raw-data
+ */
+async function getGroupedByRawData(req, res) {
+    try {
+        const {
+            page = 1,
+            pageSize = 20,
+            materialType,
+            contentType
+        } = req.query;
+
+        const repo = new MaterialRepository(req.app.locals.pool);
+        const result = await repo.findGroupedByRawData({
+            materialType,
+            contentType,
+            limit: parseInt(pageSize),
+            offset: (parseInt(page) - 1) * parseInt(pageSize)
+        });
+
+        res.json({
+            success: true,
+            data: result.groups,
+            pagination: result.pagination
+        });
+    } catch (error) {
+        console.error('获取聚合素材列表失败:', error.message);
+        res.status(500).json({
+            success: false,
+            error: error.message
+        });
+    }
+}
 
 module.exports = router;

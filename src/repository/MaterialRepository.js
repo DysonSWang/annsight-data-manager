@@ -289,8 +289,7 @@ class MaterialRepository {
                 material_type,
                 COUNT(*) as total,
                 COUNT(*) FILTER (WHERE quality_score >= 0.9) as excellent,
-                COUNT(*) FILTER (WHERE quality_score >= 0.8 AND quality_score < 0.9) as good,
-                COUNT(*) FILTER (WHERE quality_score >= 0.6 AND quality_score < 0.8) as fair,
+                COUNT(*) FILTER (WHERE quality_score >= 0.8 AND quality_score < 0.8) as fair,
                 COUNT(*) FILTER (WHERE quality_score < 0.6) as poor
             FROM processed_data
             WHERE material_type IS NOT NULL AND quality_score IS NOT NULL
@@ -299,6 +298,143 @@ class MaterialRepository {
 
         const result = await this.pool.query(query);
         return result.rows;
+    }
+
+    /**
+     * 按源数据 ID 聚合查看素材
+     * @param {string} rawDataId - 源数据 ID
+     * @returns {Promise<Object>} 源数据及其关联的素材列表
+     */
+    async findByRawDataId(rawDataId) {
+        // 获取源数据详情
+        const rawDataQuery = `
+            SELECT id, content_type, source, batch_id, oss_url,
+                   metadata->>'video_title' as video_title,
+                   created_at
+            FROM raw_data_index
+            WHERE id = $1
+        `;
+        const rawDataResult = await this.pool.query(rawDataQuery, [rawDataId]);
+        const rawData = rawDataResult.rows[0];
+
+        if (!rawData) {
+            return null;
+        }
+
+        // 获取关联的素材列表
+        const materialsQuery = `
+            SELECT
+                id, material_type, content_type, type, category,
+                title, content, source_video, source_timestamp,
+                quality_score, review_status, created_at
+            FROM processed_data
+            WHERE raw_data_id = $1
+            ORDER BY material_type, created_at DESC
+        `;
+        const materialsResult = await this.pool.query(materialsQuery, [rawDataId]);
+
+        // 按素材类型分组统计
+        const byType = {};
+        materialsResult.rows.forEach(row => {
+            if (!byType[row.material_type]) {
+                byType[row.material_type] = [];
+            }
+            byType[row.material_type].push(row);
+        });
+
+        return {
+            rawData,
+            materials: materialsResult.rows,
+            byType,
+            stats: {
+                total: materialsResult.rows.length,
+                sft: byType.sft?.length || 0,
+                rag: byType.rag?.length || 0,
+                dpo: byType.dpo?.length || 0,
+                story: byType.story?.length || 0,
+                content: byType.content?.length || 0
+            }
+        };
+    }
+
+    /**
+     * 获取按源数据聚合的素材列表（分页）
+     * @param {Object} options - 查询选项
+     * @param {string} options.materialType - 按素材类型筛选
+     * @param {string} options.contentType - 按 V9 分类筛选
+     * @param {number} options.limit - 每页数量
+     * @param {number} options.offset - 偏移量
+     * @returns {Promise<Object>} 聚合结果及分页信息
+     */
+    async findGroupedByRawData(options = {}) {
+        const { materialType, contentType, limit = 20, offset = 0 } = options;
+
+        const whereClauses = ['pd.raw_data_id IS NOT NULL'];
+        const params = [];
+        let paramIndex = 1;
+
+        if (materialType) {
+            whereClauses.push(`pd.material_type = $${paramIndex++}`);
+            params.push(materialType);
+        }
+
+        if (contentType) {
+            whereClauses.push(`pd.content_type = $${paramIndex++}`);
+            params.push(contentType);
+        }
+
+        const whereSql = whereClauses.join(' AND ');
+
+        // 获取按源数据分组的统计
+        const groupQuery = `
+            SELECT
+                pd.raw_data_id,
+                rdi.metadata->>'video_title' as video_title,
+                COUNT(*) as material_count,
+                COUNT(DISTINCT pd.material_type) as type_count,
+                COUNT(DISTINCT pd.content_type) as content_type_count,
+                AVG(pd.quality_score) as avg_quality,
+                array_agg(DISTINCT pd.material_type) as material_types,
+                array_agg(DISTINCT pd.content_type) as content_types
+            FROM processed_data pd
+            LEFT JOIN raw_data_index rdi ON pd.raw_data_id = rdi.id
+            WHERE ${whereSql}
+            GROUP BY pd.raw_data_id, rdi.metadata->>'video_title'
+            ORDER BY material_count DESC, pd.raw_data_id
+            LIMIT $${paramIndex++} OFFSET $${paramIndex++}
+        `;
+
+        params.push(limit, offset);
+
+        const groupResult = await this.pool.query(groupQuery, params);
+
+        // 获取总数 - 使用相同的参数但不包括 LIMIT 和 OFFSET
+        const countQuery = `
+            SELECT COUNT(DISTINCT pd.raw_data_id) as total
+            FROM processed_data pd
+            WHERE ${whereSql}
+        `;
+        const countParams = params.slice(0, params.length - 2);
+        const countResult = await this.pool.query(countQuery, countParams);
+        const total = parseInt(countResult.rows[0].total);
+
+        return {
+            groups: groupResult.rows.map(row => ({
+                rawDataId: row.raw_data_id,
+                videoTitle: row.video_title || '未知视频',
+                materialCount: parseInt(row.material_count),
+                typeCount: parseInt(row.type_count),
+                contentTypes: row.content_types || [],
+                materialTypes: row.material_types || [],
+                avgQuality: parseFloat(row.avg_quality) || 0
+            })),
+            pagination: {
+                total,
+                page: Math.floor(offset / limit) + 1,
+                pageSize: limit,
+                totalPages: Math.ceil(total / limit)
+            }
+        };
     }
 }
 
