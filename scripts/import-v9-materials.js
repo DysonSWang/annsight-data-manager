@@ -100,14 +100,24 @@ function convertSft(item, index) {
     const userMessage = messages.find(m => m.role === 'user');
     const assistantMessage = messages.find(m => m.role === 'assistant');
 
-    // 提取 content 中的思考过程
+    // 提取 content 中的思考过程（使用字符串方法避免正则表达式解析问题）
     let thinking = '';
     let content = '';
     if (assistantMessage && assistantMessage.content) {
-        const thinkMatch = assistantMessage.content.match(/<think>([\s\S]*?)<\/think>/);
-        if (thinkMatch) {
-            thinking = thinkMatch[1];
-            content = assistantMessage.content.replace(/<think>[\s\S]*?<\/think>/, '').trim();
+        const thinkStart = '<think>';
+        const thinkEnd = '</think>';
+        const startIdx = assistantMessage.content.indexOf(thinkStart);
+        const endIdx = assistantMessage.content.indexOf(thinkEnd);
+
+        if (startIdx !== -1 && endIdx !== -1) {
+            thinking = assistantMessage.content.substring(startIdx + thinkStart.length, endIdx).trim();
+            content = assistantMessage.content.substring(endIdx + thinkEnd.length).trim();
+
+            // 验证：回答内容不能为空或仅为另一个 <think>
+            if (!content || content.startsWith('<think>') || content.length < 20) {
+                console.warn(`跳过坏记录 #${index}: 缺少有效回答内容`);
+                return null;
+            }
         } else {
             content = assistantMessage.content;
         }
@@ -127,6 +137,7 @@ function convertSft(item, index) {
         title: userMessage?.content?.substring(0, 50) || 'SFT 样本',
         content: content,
         tags: ['sft', '对话'],
+        purposes: 'finetuning',  // SFT 用于微调
         conversation: {
             messages: messages,
             thinking: thinking
@@ -152,6 +163,7 @@ function convertRag(item, index) {
         title: item.name?.replace(/^\[.*?\]\s*/, '') || item.title || 'RAG 知识',
         content: item.content || '',
         tags: item.tags || [],
+        purposes: 'rag',  // RAG 用于知识库
         conversation: null
     };
 }
@@ -184,6 +196,7 @@ function convertDpo(item, index) {
             reason: item.metadata?.reason || ''
         }),
         tags: ['dpo', '偏好'],
+        purposes: 'finetuning',  // DPO 用于微调
         conversation: {
             prompt: item.prompt,
             chosen: item.chosen,
@@ -216,6 +229,7 @@ function convertStory(item, index) {
             principle: item.principle
         }),
         tags: item.tags || ['故事'],
+        purposes: 'content_creation',  // 故事用于内容创作
         conversation: null
     };
 }
@@ -238,6 +252,7 @@ function convertContent(item, index) {
         title: item.title || '内容素材',
         content: item.content || '',
         tags: item.tags || [],
+        purposes: 'content_creation',  // 内容素材用于内容创作
         conversation: null
     };
 }
@@ -256,8 +271,8 @@ async function importToDatabase(pool, materials, pipeline) {
             const query = `
                 INSERT INTO processed_data
                 (id, raw_data_id, material_type, content_type, source_video, source_timestamp,
-                 quality_score, type, category, title, content, tags, conversation, review_status)
-                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, 'approved')
+                 quality_score, type, category, title, content, tags, conversation, purposes, review_status)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, 'pending')
                 ON CONFLICT (id) DO UPDATE SET
                     material_type = EXCLUDED.material_type,
                     content_type = EXCLUDED.content_type,
@@ -270,6 +285,7 @@ async function importToDatabase(pool, materials, pipeline) {
                     content = EXCLUDED.content,
                     tags = EXCLUDED.tags,
                     conversation = EXCLUDED.conversation,
+                    purposes = EXCLUDED.purposes,
                     updated_at = CURRENT_TIMESTAMP
             `;
 
@@ -286,7 +302,8 @@ async function importToDatabase(pool, materials, pipeline) {
                 material.title,
                 material.content,
                 material.tags ? JSON.stringify(material.tags) : null,
-                material.conversation ? JSON.stringify(material.conversation) : null
+                material.conversation ? JSON.stringify(material.conversation) : null,
+                material.purposes || null
             ];
 
             await pool.query(query, params);
